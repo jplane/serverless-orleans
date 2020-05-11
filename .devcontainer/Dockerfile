@@ -21,7 +21,7 @@ ENV NVM_DIR=/home/$USERNAME/.nvm
 # [Optional] Install the Azure CLI
 ARG INSTALL_AZURE_CLI="false"
 
-# DOCKER args
+# Docker script args, location, and expected SHA - SHA generated on release
 ARG DOCKER_SCRIPT_SOURCE="https://raw.githubusercontent.com/microsoft/vscode-dev-containers/master/script-library/docker-debian.sh"
 ARG DOCKER_SCRIPT_SHA="dev-mode"
 ARG ENABLE_NONROOT_DOCKER="true"

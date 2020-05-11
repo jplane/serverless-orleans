@@ -5,13 +5,19 @@
    "version": "0.2.0",
    "configurations": [
         {
-            "name": "Docker .NET Core Launch",
-            "type": "docker",
+            "name": ".NET Core Launch",
+            "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "docker-run: debug",
-            "netCore": {
-                "appProject": "${workspaceFolder}/host/serverless_orleans.csproj"
-            }
+            "program": "dotnet",
+            "args": [
+                "run"
+            ],
+            "env": {
+                "ASPNETCORE_URLS": "http://*:5000",
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "DOTNET_USE_POLLING_FILE_WATCHER": "1"
+            },
+            "cwd": "${workspaceFolder}/host/."
         }
     ]
 }

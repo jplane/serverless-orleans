@@ -435,3 +435,5 @@ $RECYCLE.BIN/
 # .env files
 dev.env
 prod.env
+
+**/appsettings.Development.json
