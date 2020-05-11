@@ -57,8 +57,6 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 - [.NET Core 3.x SDK](https://dotnet.microsoft.com/download)
 
-- an Azure [storage account](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-create?tabs=azure-portal)
-
 ## Debugging
 
 - Right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Up'. This will build and launch the containers defined in the YAML file.
