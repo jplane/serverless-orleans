@@ -61,9 +61,15 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 ## Debugging
 
-First, copy [.env.template](./.env.template) and rename it '.env'. Set the value for 'AzureWebJobsStorage' to the connection string for your Azure storage account.
+- Right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Up'. This will build and launch the containers defined in the YAML file.
 
-Then, within VS Code set breakpoints as desired and hit F5. The code will build and  execute from within a local container, with the VS Code remote debugger attached.
+- Set breakpoints as desired.
+
+- Launch the VS Code debugger with F5. VS Code will attach to the 'serverlessorleans-dev' container with a remote debugger session.
+
+- Using [Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/) connect to Azurite emulated storage. Create a new queue called 'input' and add a message to it with a simple text body ('hello world' or similar).
+
+- Using [Postman](https://www.postman.com/) or [curl](https://linuxize.com/post/curl-command-examples/) issue an HTTP GET request to 'http://localhost:5000/api/messages' to observe the message enqueued in the last step is processed correctly.
 
 ## Azure Deployment
 
@@ -72,7 +78,6 @@ _TBD_
 ## Future Plans
 
 - CI/CD
-- Docker Compose with Azurite and SQL Server for local debugging
 - Actor state hosted in SQL Server
 - Scalability and load testing (multiple app service nodes, etc.)
 - Node.js and/or Python interop (define actor logic in Node or Python, with a common .NET foundation)

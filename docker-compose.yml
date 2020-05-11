@@ -1,0 +1,36 @@
+version: "3"
+
+services:
+
+  host:
+    container_name: serverlessorleans-dev
+    image: serverlessorleans:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - azurite
+      - sqlserver
+    ports:
+      - 5000:5000
+    volumes:
+      - ~/.vsdbg:/remote_debugger:rw
+  
+  azurite:
+    container_name: azurite
+    image: arafato/azurite:2.6.5
+    ports:
+      - 10000:10000
+      - 10001:10001
+      - 10002:10002
+
+  sqlserver:
+    container_name: sqlserver
+    image: mcr.microsoft.com/mssql/server:2019-CU4-ubuntu-16.04
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "p@ssw0rd"
+    ports:
+      - 1433:1433
