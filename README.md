@@ -49,11 +49,21 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 - [Docker](https://docs.docker.com/get-docker/) (use [this](https://docs.docker.com/docker-for-windows/wsl-tech-preview/) if you run WSL2 on Windows)
 
-- [Visual Studio Code](https://code.visualstudio.com/download) and the [Remote Development pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack)
+- [Visual Studio Code](https://code.visualstudio.com/download)
+
+- [VS Code Docker extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)
+
+- [VS Code C# extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp)
+
+- [.NET Core 3.x SDK](https://dotnet.microsoft.com/download)
 
 ## Debugging
 
-## Deployment
+Set breakpoints as desired and then simply hit F5 in VS Code. The code will build and then execute from within a local container, with the VS Code remote debugger attached.
+
+## Azure Deployment
+
+_TBD_
 
 ## Future Plans
 
