@@ -57,9 +57,13 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 - [.NET Core 3.x SDK](https://dotnet.microsoft.com/download)
 
+- an Azure [storage account](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-create?tabs=azure-portal)
+
 ## Debugging
 
-Set breakpoints as desired and then simply hit F5 in VS Code. The code will build and then execute from within a local container, with the VS Code remote debugger attached.
+First, copy [.env.template](./.env.template) and rename it '.env'. Set the value for 'AzureWebJobsStorage' to the connection string for your Azure storage account.
+
+Then, within VS Code set breakpoints as desired and hit F5. The code will build and  execute from within a local container, with the VS Code remote debugger attached.
 
 ## Azure Deployment
 
