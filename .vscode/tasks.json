@@ -52,6 +52,9 @@
             "dockerRun": {
                 "ports": [
                     { "hostPort": 5000, "containerPort": 5000 }
+                ],
+                "envFiles": [
+                    "${workspaceFolder}/dev.env"
                 ]
             },
             "netCore": {
@@ -65,7 +68,14 @@
             "dependsOn": [
                 "docker-build: release"
             ],
-            "dockerRun": {},
+            "dockerRun": {
+                "ports": [
+                    { "hostPort": 5000, "containerPort": 5000 }
+                ],
+                "envFiles": [
+                    "${workspaceFolder}/prod.env"
+                ]
+            },
             "netCore": {
                 "appProject": "${workspaceFolder}/host/serverless_orleans.csproj"
             }
