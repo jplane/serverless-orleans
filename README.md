@@ -48,32 +48,27 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) (use [this](https://docs.docker.com/docker-for-windows/wsl-tech-preview/) if you run WSL2 on Windows)
-
 - [Visual Studio Code](https://code.visualstudio.com/download)
-
 - [VS Code Docker extension](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-docker)
-
 - [VS Code C# extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp)
-
 - [.NET Core 3.x SDK](https://dotnet.microsoft.com/download)
+- [Azure Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/)
+- [Postman](https://www.postman.com/)
 
-## Debugging
+## Local dev and debugging
 
-- Right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Up'. This will build and launch the containers defined in the YAML file.
+- Right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Up'. This will build and launch the containers defined in the YAML file
+- Set breakpoints as desired
+- Launch the VS Code debugger with F5. VS Code will attach to the 'serverlessorleans-dev' container with a remote debugger session
+- Using Storage Explorer, connect to Azurite emulated storage. Create a new queue called 'input' and add a message to it with a simple text body ('hello world' or similar)
+- Using Postman or curl, send an HTTP GET request to http://localhost:5000/api/messages
+- When finished, right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Down'
 
-- Set breakpoints as desired.
-
-- Launch the VS Code debugger with F5. VS Code will attach to the 'serverlessorleans-dev' container with a remote debugger session.
-
-- Using [Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/) connect to Azurite emulated storage. Create a new queue called 'input' and add a message to it with a simple text body ('hello world' or similar).
-
-- Using [Postman](https://www.postman.com/) or [curl](https://linuxize.com/post/curl-command-examples/) issue an HTTP GET request to 'http://localhost:5000/api/messages' to observe the message enqueued in the last step is processed correctly.
-
-## Azure Deployment
+## Azure deployment
 
 _TBD_
 
-## Future Plans
+## Future plans
 
 - CI/CD
 - Actor state hosted in SQL Server
