@@ -9,6 +9,7 @@ using Orleans.Hosting;
 using Orleans.Configuration;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System;
 
 namespace ServerlessOrleans
 {
@@ -18,13 +19,12 @@ namespace ServerlessOrleans
         {
             var builder = Host.CreateDefaultBuilder(args);
 
-            //builder.UseEnvironment(Environments.Development);
-
             builder.ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.Configure((ctx, app) =>
                 {
-                    if (ctx.HostingEnvironment.IsDevelopment())
+                    if (ctx.HostingEnvironment.IsEnvironment("Local-InMemory") ||
+                        ctx.HostingEnvironment.IsEnvironment("Local-SQL"))
                     {
                         app.UseDeveloperExceptionPage();
                     }
@@ -56,19 +56,43 @@ namespace ServerlessOrleans
                 services.AddControllers();
             });
 
-            builder.UseOrleans(siloBuilder =>
+            builder.UseOrleans((ctxt, siloBuilder) =>
             {
-                siloBuilder.AddMemoryGrainStorage("main")
-                           .UseLocalhostClustering()
-                           .Configure<ClusterOptions>(opts =>
-                           {
-                               opts.ClusterId = "dev";
-                               opts.ServiceId = "MessagesAPI";
-                           })
-                           .Configure<EndpointOptions>(opts =>
-                           {
-                               opts.AdvertisedIPAddress = IPAddress.Loopback;
-                           });
+                siloBuilder = siloBuilder.Configure<ClusterOptions>(options =>
+                {
+                    options.ClusterId = "serverlessorleans";
+                    options.ServiceId = "serverlessorleans";
+                });
+
+                if (ctxt.HostingEnvironment.IsEnvironment("Local-InMemory"))
+                {
+                    siloBuilder.AddMemoryGrainStorageAsDefault()
+                               .UseLocalhostClustering();
+                }
+                else if (ctxt.HostingEnvironment.IsEnvironment("Local-SQL"))
+                {
+                    throw new NotImplementedException();
+                }
+                else if (ctxt.HostingEnvironment.IsEnvironment("Azure-Storage"))
+                {
+                    siloBuilder
+                        .AddAzureBlobGrainStorageAsDefault(options =>
+                        {
+                            options.ConnectionString = ctxt.Configuration["AzureWebJobsStorage"];
+                            options.UseJson = true;
+                            options.ContainerName = "actorstate";
+                        })
+                        .UseAzureStorageClustering(options =>
+                        {
+                            options.ConnectionString = ctxt.Configuration["AzureWebJobsStorage"];
+                            options.TableName = "clusterstate";
+                        })
+                        .ConfigureEndpoints(siloPort: 11111, gatewayPort: 30000);
+                }
+                else if (ctxt.HostingEnvironment.IsEnvironment("Azure-SQL"))
+                {
+                    throw new NotImplementedException();
+                }
             });
 
             return builder.RunConsoleAsync();

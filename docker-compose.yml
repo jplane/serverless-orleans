@@ -17,7 +17,7 @@ services:
       - 5000:5000
     volumes:
       - ~/.vsdbg:/remote_debugger:rw
-  
+
   azurite:
     container_name: azurite
     image: arafato/azurite:2.6.5
@@ -28,9 +28,9 @@ services:
 
   sqlserver:
     container_name: sqlserver
-    image: mcr.microsoft.com/mssql/server:2019-CU4-ubuntu-16.04
-    environment:
-      ACCEPT_EULA: "Y"
-      SA_PASSWORD: "p@ssw0rd"
+    image: serverlessorleansdb:dev
+    build:
+      context: .
+      dockerfile: sql.dockerfile
     ports:
       - 1433:1433

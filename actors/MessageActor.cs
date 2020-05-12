@@ -12,8 +12,8 @@ namespace ServerlessOrleans
         private readonly IPersistentState<MessageState> _state;
         private readonly ILogger<MessageActor> _log;
 
-        public MessageActor([PersistentState("state", "main")] IPersistentState<MessageState> state,
-                             ILogger<MessageActor> log)
+        public MessageActor([PersistentState("state")] IPersistentState<MessageState> state,
+                            ILogger<MessageActor> log)
         {
             _state = state;
             _log = log;
