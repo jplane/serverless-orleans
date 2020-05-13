@@ -66,7 +66,14 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 ## Azure deployment
 
-_TBD_
+From a bash shell, run [azure_deploy.sh](./azure_deploy.sh) as follows:
+
+<pre>
+./azure_deploy.sh \
+        <i>new-database-pwd</i> \
+        <i>local-ip-addr</i> \
+        <i>root-resources-name</i>
+</pre>
 
 ## Future plans
 
