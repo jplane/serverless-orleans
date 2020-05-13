@@ -12,7 +12,7 @@ services:
       - .env
     depends_on:
       - azurite
-      - sqlserver
+      - mssql
     ports:
       - 5000:5000
     volumes:
@@ -26,8 +26,8 @@ services:
       - 10001:10001
       - 10002:10002
 
-  sqlserver:
-    container_name: sqlserver
+  mssql:
+    container_name: mssql
     image: serverlessorleansdb:dev
     build:
       context: .

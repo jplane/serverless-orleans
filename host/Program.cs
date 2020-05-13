@@ -71,7 +71,14 @@ namespace ServerlessOrleans
                 }
                 else if (ctxt.HostingEnvironment.IsEnvironment("Local-SQL"))
                 {
-                    throw new NotImplementedException();
+                    siloBuilder
+                        .AddAdoNetGrainStorageAsDefault(options =>
+                        {
+                            options.Invariant = "System.Data.SqlClient";
+                            options.ConnectionString = ctxt.Configuration["SqlConnectionString"];
+                            options.UseJsonFormat = true;
+                        })
+                        .UseLocalhostClustering();
                 }
                 else if (ctxt.HostingEnvironment.IsEnvironment("Azure-Storage"))
                 {
@@ -91,7 +98,19 @@ namespace ServerlessOrleans
                 }
                 else if (ctxt.HostingEnvironment.IsEnvironment("Azure-SQL"))
                 {
-                    throw new NotImplementedException();
+                    siloBuilder
+                        .AddAdoNetGrainStorageAsDefault(options =>
+                        {
+                            options.Invariant = "System.Data.SqlClient";
+                            options.ConnectionString = ctxt.Configuration["SqlConnectionString"];
+                            options.UseJsonFormat = true;
+                        })
+                        .UseAdoNetClustering(options =>
+                        {
+                            options.Invariant = "System.Data.SqlClient";
+                            options.ConnectionString = ctxt.Configuration["SqlConnectionString"];
+                        })
+                        .ConfigureEndpoints(siloPort: 11111, gatewayPort: 30000);
                 }
             });
 
