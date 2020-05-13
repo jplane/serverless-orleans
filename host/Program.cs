@@ -23,8 +23,8 @@ namespace ServerlessOrleans
             {
                 webBuilder.Configure((ctx, app) =>
                 {
-                    if (ctx.HostingEnvironment.IsEnvironment("Local-InMemory") ||
-                        ctx.HostingEnvironment.IsEnvironment("Local-SQL"))
+                    if (ctx.HostingEnvironment.IsEnvironment("LOCAL-INMEMORY") ||
+                        ctx.HostingEnvironment.IsEnvironment("LOCAL-SQL"))
                     {
                         app.UseDeveloperExceptionPage();
                     }
@@ -64,12 +64,12 @@ namespace ServerlessOrleans
                     options.ServiceId = "serverlessorleans";
                 });
 
-                if (ctxt.HostingEnvironment.IsEnvironment("Local-InMemory"))
+                if (ctxt.HostingEnvironment.IsEnvironment("LOCAL-INMEMORY"))
                 {
                     siloBuilder.AddMemoryGrainStorageAsDefault()
                                .UseLocalhostClustering();
                 }
-                else if (ctxt.HostingEnvironment.IsEnvironment("Local-SQL"))
+                else if (ctxt.HostingEnvironment.IsEnvironment("LOCAL-SQL"))
                 {
                     siloBuilder
                         .AddAdoNetGrainStorageAsDefault(options =>
@@ -80,7 +80,7 @@ namespace ServerlessOrleans
                         })
                         .UseLocalhostClustering();
                 }
-                else if (ctxt.HostingEnvironment.IsEnvironment("Azure-Storage"))
+                else if (ctxt.HostingEnvironment.IsEnvironment("AZURE-STORAGE"))
                 {
                     siloBuilder
                         .AddAzureBlobGrainStorageAsDefault(options =>
@@ -96,7 +96,7 @@ namespace ServerlessOrleans
                         })
                         .ConfigureEndpoints(siloPort: 11111, gatewayPort: 30000);
                 }
-                else if (ctxt.HostingEnvironment.IsEnvironment("Azure-SQL"))
+                else if (ctxt.HostingEnvironment.IsEnvironment("AZURE-SQL"))
                 {
                     siloBuilder
                         .AddAdoNetGrainStorageAsDefault(options =>

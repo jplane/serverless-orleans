@@ -1,16 +1,13 @@
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1 AS base
-WORKDIR /app
-
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build
 WORKDIR /src
+COPY ./host/serverless_orleans.csproj ./host/
+COPY ./actors/serverless_orleans_actors.csproj ./actors/
+COPY ./interfaces/serverless_orleans_interfaces.csproj ./interfaces/
+RUN dotnet restore "./host/serverless_orleans.csproj" --disable-parallel
 COPY . .
-WORKDIR /src/.
-RUN dotnet build "./host/serverless_orleans.csproj" -c Release -o /app/build
+RUN dotnet publish "./host/serverless_orleans.csproj" --no-restore -c Release -o /app/publish
 
-FROM build AS publish
-RUN dotnet publish "./host/serverless_orleans.csproj" -c Release -o /app/publish
-
-FROM base AS final
+FROM mcr.microsoft.com/dotnet/core/aspnet:3.1
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "serverless_orleans.dll"]
