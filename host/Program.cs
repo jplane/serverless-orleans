@@ -58,7 +58,11 @@ namespace ServerlessOrleans
 
             builder.UseOrleans((ctxt, siloBuilder) =>
             {
-                siloBuilder = siloBuilder.Configure<ClusterOptions>(options =>
+                siloBuilder = siloBuilder.Configure<ProcessExitHandlingOptions>(options =>
+                {
+                    options.FastKillOnProcessExit = false;
+                })
+                .Configure<ClusterOptions>(options =>
                 {
                     options.ClusterId = "serverlessorleans";
                     options.ServiceId = "serverlessorleans";
@@ -94,7 +98,7 @@ namespace ServerlessOrleans
                             options.ConnectionString = ctxt.Configuration["AzureWebJobsStorage"];
                             options.TableName = "clusterstate";
                         })
-                        .ConfigureEndpoints(siloPort: 11111, gatewayPort: 30000);
+                        .ConfigureEndpoints(Dns.GetHostName(), 11111, 30000);
                 }
                 else if (ctxt.HostingEnvironment.IsEnvironment("AZURE-SQL"))
                 {
@@ -110,7 +114,7 @@ namespace ServerlessOrleans
                             options.Invariant = "System.Data.SqlClient";
                             options.ConnectionString = ctxt.Configuration["SqlConnectionString"];
                         })
-                        .ConfigureEndpoints(siloPort: 11111, gatewayPort: 30000);
+                        .ConfigureEndpoints(Dns.GetHostName(), 11111, 30000);
                 }
             });
 
