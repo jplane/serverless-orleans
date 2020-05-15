@@ -66,10 +66,10 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 ## Azure deployment
 
-From a bash shell, run [azure_deploy.sh](./azure_deploy.sh) as follows:
+From a bash shell, run [azure_webapp_deploy.sh](./azure_webapp_deploy.sh) as follows:
 
 <pre>
-./azure_deploy.sh \
+./azure_webapp_deploy.sh \
         <i>new-database-pwd</i> \
         <i>local-ip-addr</i> \
         <i>root-resources-name</i>
