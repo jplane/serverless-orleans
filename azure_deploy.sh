@@ -151,7 +151,7 @@ create_container_group () {
     # create container group attached to vnet
     az container create \
         --resource-group $RG \
-        --name ${NAME}containergroup \
+        --name ${NAME}cg1234 \
         --image ${NAME}registry.azurecr.io/backend:v1 \
         --registry-username ${NAME}registry \
         --registry-password $acr_pwd \
@@ -163,6 +163,9 @@ create_container_group () {
         --subnet ${NAME}backendsubnet \
         --log-analytics-workspace ${NAME}loganalyticsworkspace \
         --log-analytics-workspace-key $la_wksp_key
+
+    # get container group id
+    cg_id=$(az container show --resource-group ${RG} --name ${NAME}cg1234 --query id --output tsv)
 }
 
 create_app_service () {
@@ -213,6 +216,30 @@ create_app_service () {
         --subnet ${NAME}frontendsubnet
 }
 
+create_autoscale_alerts () {
+    # create scale up alert
+    az monitor metrics alert create \
+        --resource-group $RG \
+        --name ${NAME}scaleupalert \
+        --scopes ${cg_id} \
+        --condition "avg Percentage CPU > 75" \
+        --window-size 5m \
+        --evaluation-frequency 2m \
+        --action webhook https://www.contoso.com/scaleup \
+        --description "high CPU - scale up"
+
+    # create scale down alert
+    az monitor metrics alert create \
+        --resource-group $RG \
+        --name ${NAME}scaledownalert \
+        --scopes ${cg_id} \
+        --condition "avg Percentage CPU < 25" \
+        --window-size 5m \
+        --evaluation-frequency 2m \
+        --action webhook https://www.contoso.com/scaledown \
+        --description "low CPU - scale down"
+}
+
 NAME=${1:-serverlessorleans}
 RG=${NAME}-rg
 
@@ -224,3 +251,4 @@ create_log_analytics_workspace
 create_vnet
 create_container_group
 create_app_service
+create_autoscale_alerts

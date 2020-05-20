@@ -9,7 +9,7 @@ using Orleans;
 namespace Frontend
 {
     [ApiController]
-    [Route("api/messages")]
+    [Route("messages")]
     public class MessagesController : ControllerBase
     {
         private readonly IClusterClient _client;
