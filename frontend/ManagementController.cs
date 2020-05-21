@@ -93,13 +93,13 @@ namespace Frontend
         {
             _log.LogInformation("Scaling in the actor cluster");
 
+            var azure = await GetAzureContext();
+
             var name = Environment.GetEnvironmentVariable("ACG_ROOT_NAME");
             var rg = $"{name}-rg";
 
             using (await _mutex.LockAsync())
             {
-                var azure = await GetAzureContext();
-
                 var existingGroups = await azure.ContainerGroups.ListByResourceGroupAsync(rg);
 
                 if (existingGroups.Count() > 1)
