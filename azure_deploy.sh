@@ -209,7 +209,8 @@ create_app_service () {
         --settings \
             ORLEANS_CONFIG=STORAGE \
             ASPNETCORE_ENVIRONMENT=Production \
-            AzureWebJobsStorage="${storage_connection_string}"
+            AzureWebJobsStorage="${storage_connection_string}" \
+            ACG_ROOT_NAME="${NAME}"
 
     # add to vnet
     az webapp vnet-integration add \
@@ -261,4 +262,4 @@ create_log_analytics_workspace
 create_vnet
 create_container_group
 create_app_service
-create_autoscale_alerts
+#create_autoscale_alerts
