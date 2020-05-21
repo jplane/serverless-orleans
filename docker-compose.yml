@@ -2,15 +2,21 @@ version: "3"
 
 services:
 
-  host:
-    container_name: serverlessorleans-dev
-    image: serverlessorleans:dev
+  frontend:
+    container_name: frontend
+    image: orleansfrontend:dev
     build:
       context: .
-      dockerfile: Dockerfile
-    env_file:
-      - .env
+      dockerfile: frontend.dockerfile
+    environment:
+      - ORLEANS_CONFIG=SQL
+      - ASPNETCORE_URLS=http://*:5000
+      - DOTNET_USE_POLLING_FILE_WATCHER=1
+      - AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
+      - SqlConnectionString=server=mssql; database=orleans; user id=sa; password=p@ssw0rd;
+      - Logging__LogLevel__Default=Debug
     depends_on:
+      - backend
       - azurite
       - mssql
     ports:
@@ -18,6 +24,26 @@ services:
     volumes:
       - ~/.vsdbg:/remote_debugger:rw
 
+  backend:
+    container_name: backend
+    image: orleansbackend:dev
+    build:
+      context: .
+      dockerfile: backend.dockerfile
+    environment:
+      - ORLEANS_CONFIG=SQL
+      - StorageConnectionString=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;TableEndpoint=http://azurite:10002/devstoreaccount1;
+      - SqlConnectionString=server=mssql; database=orleans; user id=sa; password=p@ssw0rd;
+      - Logging__LogLevel__Default=Debug
+    depends_on:
+      - azurite
+      - mssql
+    ports:
+      - 11111:11111
+      - 30000:30000
+    volumes:
+      - ~/.vsdbg:/remote_debugger:rw
+    
   azurite:
     container_name: azurite
     image: arafato/azurite:2.6.5
@@ -28,7 +54,7 @@ services:
 
   mssql:
     container_name: mssql
-    image: serverlessorleansdb:dev
+    image: orleansdb:dev
     build:
       context: .
       dockerfile: sql.dockerfile

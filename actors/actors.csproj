@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\interfaces\serverless_orleans_interfaces.csproj" />
+    <ProjectReference Include="..\interfaces\interfaces.csproj" />
   </ItemGroup>
 
 </Project>

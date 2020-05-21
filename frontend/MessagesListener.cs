@@ -2,21 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Actors;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Queue;
 using Orleans;
 
-namespace ServerlessOrleans
+namespace Frontend
 {
     public class MessagesListener
     {
-        private readonly IMessageActor _actor;
+        private readonly IClusterClient _client;
         private readonly ILogger<MessagesListener> _log;
 
-        public MessagesListener(IGrainFactory client, ILogger<MessagesListener> log)
+        public MessagesListener(IClusterClient client, ILogger<MessagesListener> log)
         {
-            _actor = client.GetGrain<IMessageActor>(0);
+            _client = client;
             _log = log;
         }
 
@@ -24,7 +25,9 @@ namespace ServerlessOrleans
         {
             _log.LogInformation("Queue message received: " + message.Id);
 
-            await _actor.AddMessage(message.AsString);
+            var actor = _client.GetGrain<IMessageActor>(0);
+
+            await actor.AddMessage(message.AsString);
         }
     }
 }

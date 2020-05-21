@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace ServerlessOrleans
+namespace Actors
 {
     public interface IMessageActor : Orleans.IGrainWithIntegerKey
     {

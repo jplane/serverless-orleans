@@ -1,33 +1,36 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Actors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Orleans;
 
-namespace ServerlessOrleans
+namespace Frontend
 {
     [ApiController]
-    [Route("api/messages")]
+    [Route("messages")]
     public class MessagesController : ControllerBase
     {
-        private readonly IMessageActor _grain;
+        private readonly IClusterClient _client;
         private readonly ILogger<MessagesController> _log;
 
-        public MessagesController(IGrainFactory client, ILogger<MessagesController> log)
+        public MessagesController(IClusterClient client, ILogger<MessagesController> log)
         {
-            _grain = client.GetGrain<IMessageActor>(0);
+            _client = client;
             _log = log;
         }
 
         [HttpGet]
-        public async Task<string> GetMessages()
+        public async Task<string[]> GetMessages()
         {
             _log.LogInformation("Getting messages");
 
-            var messages = await _grain.GetMessages();
+            var actor = _client.GetGrain<IMessageActor>(0);
 
-            return string.Join(Environment.NewLine, messages);
+            var messages = await actor.GetMessages();
+
+            return messages.ToArray();
         }
     }
 }
