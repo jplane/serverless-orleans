@@ -206,6 +206,7 @@ create_app_service () {
         --name ${NAME}appservice \
         --settings \
             ORLEANS_CONFIG=STORAGE \
+            ASPNETCORE_ENVIRONMENT=Production \
             AzureWebJobsStorage="${storage_connection_string}"
 
     # add to vnet
