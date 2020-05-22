@@ -22,8 +22,6 @@ namespace Backend
         {
             var env = Environment.GetEnvironmentVariable("ORLEANS_CONFIG");
 
-            _metricsWriter = new MetricsWriter();
-
             var builder = new SiloHostBuilder();
 
             builder
@@ -76,6 +74,8 @@ namespace Backend
             }
 
             _silo = builder.Build();
+
+            _metricsWriter = new MetricsWriter();
 
             Task.Run(StartSilo);
 

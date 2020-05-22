@@ -7,6 +7,7 @@ namespace Backend
 {
     public class MetricsWriter
     {
+        private static Guid _id = Guid.NewGuid();
         private Timer _timer;
 
         public MetricsWriter()
@@ -35,7 +36,7 @@ namespace Backend
 
             var mem_used = ((memory.Used / memory.Total) * 100d);
 
-            var output = $"{{ 'cpu_used': {cpu.Used:F2}, 'mem_used': {mem_used:F2}, 'mem_total': {memory.Total:F2} }}";
+            var output = $"{{ 'id': {_id.ToString("D")}, 'cpu_used': {cpu.Used:F2}, 'mem_used': {mem_used:F2}, 'mem_total': {memory.Total:F2} }}";
 
             Console.WriteLine(output);
         }
