@@ -6,6 +6,8 @@
 create_resource_group () {
     # create resource group
     az group create --name $RG --location southcentralus
+
+    rg_id=$(az group show --name $RG --query id --output tsv)
 }
 
 create_storage () {
@@ -104,7 +106,7 @@ upload_container_images () {
     docker login ${NAME}registry.azurecr.io --username ${NAME}registry --password $acr_pwd
 
     # build frontend docker image
-    docker build -t ${NAME}registry.azurecr.io/frontend:v1 -f frontend.dockerfile .
+    docker build --build-arg BUILD_ENV=prod -t ${NAME}registry.azurecr.io/frontend:v1 -f frontend.dockerfile .
 
     # push frontend image to ACR
     docker push ${NAME}registry.azurecr.io/frontend:v1
@@ -206,7 +208,9 @@ create_app_service () {
         --name ${NAME}appservice \
         --settings \
             ORLEANS_CONFIG=STORAGE \
-            AzureWebJobsStorage="${storage_connection_string}"
+            ASPNETCORE_ENVIRONMENT=Production \
+            AzureWebJobsStorage="${storage_connection_string}" \
+            ACG_ROOT_NAME="${NAME}"
 
     # add to vnet
     az webapp vnet-integration add \
@@ -214,6 +218,13 @@ create_app_service () {
         --name ${NAME}appservice \
         --vnet ${NAME}vnet \
         --subnet ${NAME}frontendsubnet
+
+    # add managed identity so we can create/remove resources for autoscale
+    az webapp identity assign \
+        --resource-group $RG \
+        --name ${NAME}appservice \
+        --role contributor \
+        --scope $rg_id
 }
 
 create_autoscale_alerts () {
@@ -251,4 +262,4 @@ create_log_analytics_workspace
 create_vnet
 create_container_group
 create_app_service
-create_autoscale_alerts
+#create_autoscale_alerts
