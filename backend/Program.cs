@@ -15,11 +15,14 @@ namespace Backend
     public class Program
     {
         private static ISiloHost _silo;
+        private static MetricsWriter _metricsWriter;
         private static readonly ManualResetEvent _siloStopped = new ManualResetEvent(false);
         
         public static void Main(string[] args)
         {
             var env = Environment.GetEnvironmentVariable("ORLEANS_CONFIG");
+
+            _metricsWriter = new MetricsWriter();
 
             var builder = new SiloHostBuilder();
 
@@ -88,11 +91,13 @@ namespace Backend
         private static async Task StartSilo()
         {
             await _silo.StartAsync();
+            await _metricsWriter.StartAsync();
             Console.WriteLine("Silo started");
         }
 
         private static async Task StopSilo()
         {
+            await _metricsWriter.StopAsync();
             await _silo.StopAsync();
             Console.WriteLine("Silo stopped");
             _siloStopped.Set();
