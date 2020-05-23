@@ -6,17 +6,20 @@ using Orleans.Configuration;
 using System;
 using System.Threading.Tasks;
 using System.Threading;
+using Microsoft.Extensions.Configuration;
 
 namespace Frontend
 {
     public class ActorClientService : IHostedService
     {
         private readonly ILogger<ActorClientService> _log;
+        private readonly IConfiguration _config;
 
         public IClusterClient Client { get; }
 
-        public ActorClientService(ILogger<ActorClientService> log)
+        public ActorClientService(IConfiguration config, ILogger<ActorClientService> log)
         {
+            _config = config;
             _log = log;
 
             var builder =
@@ -28,7 +31,7 @@ namespace Frontend
                     })
                     .ConfigureLogging(builder => builder.AddConsole());
 
-            var env = Environment.GetEnvironmentVariable("ORLEANS_CONFIG");
+            var env = _config["ORLEANS_CONFIG"];
 
             if (env == "SQL")
             {

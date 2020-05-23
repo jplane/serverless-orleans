@@ -40,7 +40,7 @@ namespace Frontend
 
             var azure = await GetAzureContext();
 
-            var name = Environment.GetEnvironmentVariable("ACG_ROOT_NAME");
+            var name = _config["ACG_ROOT_NAME"];
             var rg = $"{name}-rg";
 
             var aci_name = $"{name}cg{GetRandomString(4)}";
@@ -95,7 +95,7 @@ namespace Frontend
 
             var azure = await GetAzureContext();
 
-            var name = Environment.GetEnvironmentVariable("ACG_ROOT_NAME");
+            var name = _config["ACG_ROOT_NAME"];
             var rg = $"{name}-rg";
 
             using (await _mutex.LockAsync())

@@ -16,13 +16,11 @@ namespace Frontend
         {
             var builder = Host.CreateDefaultBuilder(args);
 
-            var env = Environment.GetEnvironmentVariable("ENVIRONMENT");
-
             builder.ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.Configure((ctx, app) =>
                 {
-                    if (env == "LOCAL-INMEMORY" || env == "LOCAL-SQL")
+                    if (ctx.HostingEnvironment.IsDevelopment())
                     {
                         app.UseDeveloperExceptionPage();
                     }
