@@ -15,7 +15,6 @@
     <PackageReference Include="Microsoft.Orleans.Clustering.AdoNet" Version="3.1.6" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.1" />
     <PackageReference Include="Microsoft.Azure.Management.Fluent" Version="1.33.0" />
-    <PackageReference Include="Microsoft.Azure.Management.ContainerInstance.Fluent" Version="1.33.0" />
     <PackageReference Include="Nito.AsyncEx" Version="5.0.0" />
   </ItemGroup>
 

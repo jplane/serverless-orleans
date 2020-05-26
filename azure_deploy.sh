@@ -124,6 +124,13 @@ create_log_analytics_workspace () {
         --resource-group $RG \
         --workspace-name ${NAME}loganalyticsworkspace
 
+    # get workspace id
+    la_wksp_id=$(az monitor log-analytics workspace show \
+                   --resource-group ${RG} \
+                   --workspace-name ${NAME}loganalyticsworkspace \
+                   --query id \
+                   --output tsv)
+
     # get workspace key
     la_wksp_key=$(az monitor log-analytics workspace get-shared-keys \
                     --resource-group ${RG} \
@@ -168,6 +175,13 @@ create_container_group () {
 
     # get container group id
     cg_id=$(az container show --resource-group ${RG} --name ${NAME}cg1234 --query id --output tsv)
+
+    # create Azure Monitor metric export to Azure Monitor logs
+    az monitor diagnostic-settings create \
+        --name ${NAME}metricsoutput \
+        --resource $cg_id \
+        --metrics '[{"category": "AllMetrics","enabled": true}]' \
+        --workspace $la_wksp_id
 }
 
 create_app_service () {
@@ -227,30 +241,6 @@ create_app_service () {
         --scope $rg_id
 }
 
-create_autoscale_alerts () {
-    # create scale up alert
-    az monitor metrics alert create \
-        --resource-group $RG \
-        --name ${NAME}scaleupalert \
-        --scopes ${cg_id} \
-        --condition "avg Percentage CPU > 75" \
-        --window-size 5m \
-        --evaluation-frequency 2m \
-        --action webhook https://www.contoso.com/scaleup \
-        --description "high CPU - scale up"
-
-    # create scale down alert
-    az monitor metrics alert create \
-        --resource-group $RG \
-        --name ${NAME}scaledownalert \
-        --scopes ${cg_id} \
-        --condition "avg Percentage CPU < 25" \
-        --window-size 5m \
-        --evaluation-frequency 2m \
-        --action webhook https://www.contoso.com/scaledown \
-        --description "low CPU - scale down"
-}
-
 NAME=${1:-serverlessorleans}
 RG=${NAME}-rg
 
@@ -262,4 +252,3 @@ create_log_analytics_workspace
 create_vnet
 create_container_group
 create_app_service
-#create_autoscale_alerts

@@ -47,6 +47,62 @@ namespace Frontend
             var acr_uri = $"$https://{name}registry.azurecr.io";
             var acr_user = $"{name}registry";
 
+            await CreateNewAci(azure, rg, aci_name, acr_uri, acr_user);
+            await CreateNewMetricsOutput(azure, rg, aci_name);
+        }
+
+        [HttpPost("scalein")]
+        public async Task ScaleIn()
+        {
+            _log.LogInformation("Scaling in the actor cluster");
+
+            var azure = await GetAzureContext();
+
+            var name = _config["ACG_ROOT_NAME"];
+            var rg = $"{name}-rg";
+
+            using (await _mutex.LockAsync())
+            {
+                var existingGroups = await azure.ContainerGroups.ListByResourceGroupAsync(rg);
+
+                if (existingGroups.Count() > 1)
+                {
+                    var group = existingGroups.First();
+
+                    await group.StopAsync();
+                    await azure.ContainerGroups.DeleteByIdAsync(group.Id);
+                    await RemoveMetricsOutput(azure, rg, group.Name);
+                }
+            }
+        }
+
+        private async Task RemoveMetricsOutput(IAzure azure, string rg, string aci_name)
+        {
+            var resourceId = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/test/providers/Microsoft.ContainerInstance/containerGroups/{aci_name}";
+            var diagnosticSettingName = $"{aci_name}metricsoutput";
+
+            await azure.DiagnosticSettings.DeleteAsync(resourceId, diagnosticSettingName);
+        }
+
+        private async Task CreateNewMetricsOutput(IAzure azure, string rg, string aci_name)
+        {
+            var existingContainerGroup = (await azure.ContainerGroups.ListByResourceGroupAsync(rg)).First();
+
+            var la_wksp_id = existingContainerGroup.LogAnalytics.WorkspaceId;
+            var la_wksp_key = existingContainerGroup.LogAnalytics.WorkspaceKey;
+
+            var resourceId = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/test/providers/Microsoft.ContainerInstance/containerGroups/{aci_name}";
+
+            await azure.DiagnosticSettings
+                            .Define($"{aci_name}metricsoutput")
+                            .WithResource(resourceId)
+                            .WithLogAnalytics(la_wksp_id)
+                                .WithMetric("AllMetrics", TimeSpan.FromSeconds(15), 0)
+                            .CreateAsync();
+        }
+
+        private async Task CreateNewAci(IAzure azure, string rg, string aci_name, string acr_uri, string acr_user)
+        {
             // get existing ACI instance
             // there is no means to query network profiles via .NET SDK <sigh>
             //  also, when you get a profile ID from an existing container it comes as a single string,
@@ -56,9 +112,9 @@ namespace Frontend
             var profileName = existingContainerGroup.NetworkProfileId.Split("/").Last();
             var la_wksp_id = existingContainerGroup.LogAnalytics.WorkspaceId;
             var la_wksp_key = existingContainerGroup.LogAnalytics.WorkspaceKey;
-            
+
             var existingContainerInstance = existingContainerGroup.Containers.Single();
-            
+
             var ports = existingContainerInstance.Value.Ports.Select(p => p.Port).ToArray();
             var image = existingContainerInstance.Value.Image;
             var env_vars = existingContainerInstance.Value.EnvironmentVariables.ToDictionary(e => e.Name, e => e.Value);
@@ -86,30 +142,6 @@ namespace Frontend
                             .WithLogAnalytics(la_wksp_id, la_wksp_key)
                             .WithNetworkProfileId(azure.SubscriptionId, rg, profileName)
                             .CreateAsync();
-        }
-
-        [HttpPost("scalein")]
-        public async Task ScaleIn()
-        {
-            _log.LogInformation("Scaling in the actor cluster");
-
-            var azure = await GetAzureContext();
-
-            var name = _config["ACG_ROOT_NAME"];
-            var rg = $"{name}-rg";
-
-            using (await _mutex.LockAsync())
-            {
-                var existingGroups = await azure.ContainerGroups.ListByResourceGroupAsync(rg);
-
-                if (existingGroups.Count() > 1)
-                {
-                    var group = existingGroups.First();
-
-                    await group.StopAsync();
-                    await azure.ContainerGroups.DeleteByIdAsync(group.Id);
-                }
-            }
         }
 
         private string GetRandomString(int length)
