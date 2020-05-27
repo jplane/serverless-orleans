@@ -10,6 +10,7 @@ using Microsoft.Azure.Management.ResourceManager.Fluent;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
 using Microsoft.Azure.Management.ContainerRegistry.Fluent;
 using Nito.AsyncEx;
+using Microsoft.Azure.Management.ContainerInstance.Fluent;
 
 namespace Frontend
 {
@@ -67,7 +68,7 @@ namespace Frontend
 
                 if (existingGroups.Count() > 1)
                 {
-                    var group = existingGroups.First();
+                    var group = existingGroups.Where(g => ! g.Name.EndsWith("cg1234")).First();
 
                     await group.StopAsync();
                     await azure.ContainerGroups.DeleteByIdAsync(group.Id);
@@ -86,7 +87,7 @@ namespace Frontend
 
         private async Task CreateNewMetricsOutput(IAzure azure, string rg, string aci_name)
         {
-            var existingContainerGroup = (await azure.ContainerGroups.ListByResourceGroupAsync(rg)).First();
+            var existingContainerGroup = (await GetRootActorContainerGroup(azure, rg));
 
             var la_wksp_id = existingContainerGroup.LogAnalytics.WorkspaceId;
             var la_wksp_key = existingContainerGroup.LogAnalytics.WorkspaceKey;
@@ -107,7 +108,7 @@ namespace Frontend
             // there is no means to query network profiles via .NET SDK <sigh>
             //  also, when you get a profile ID from an existing container it comes as a single string,
             //  and below we need it in separate chunks <sigh> <sigh>
-            var existingContainerGroup = (await azure.ContainerGroups.ListByResourceGroupAsync(rg)).First();
+            var existingContainerGroup = (await GetRootActorContainerGroup(azure, rg));
 
             var profileName = existingContainerGroup.NetworkProfileId.Split("/").Last();
             var la_wksp_id = existingContainerGroup.LogAnalytics.WorkspaceId;
@@ -142,6 +143,14 @@ namespace Frontend
                             .WithLogAnalytics(la_wksp_id, la_wksp_key)
                             .WithNetworkProfileId(azure.SubscriptionId, rg, profileName)
                             .CreateAsync();
+        }
+
+        private Task<IContainerGroup> GetRootActorContainerGroup(IAzure azure, string resourceGroup)
+        {
+            var name = _config["ACG_ROOT_NAME"];
+            var cg_name = $"{name}cg1234";
+
+            return azure.ContainerGroups.GetByResourceGroupAsync(resourceGroup, cg_name);
         }
 
         private string GetRandomString(int length)
