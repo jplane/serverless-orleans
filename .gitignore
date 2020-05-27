@@ -428,3 +428,6 @@ $RECYCLE.BIN/
 !.vscode/extensions.json
 
 azureauth.json
+
+.terraform/
+*.tfstate*
