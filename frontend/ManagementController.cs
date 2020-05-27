@@ -97,7 +97,7 @@ namespace Frontend
                             .Define($"{aci_name}metricsoutput")
                             .WithResource(resourceId)
                             .WithLogAnalytics(la_wksp_id)
-                                .WithMetric("AllMetrics", TimeSpan.FromSeconds(15), 0)
+                                .WithMetric("AllMetrics", TimeSpan.FromMinutes(1), 0)
                             .CreateAsync();
         }
 
