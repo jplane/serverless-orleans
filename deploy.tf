@@ -3,6 +3,10 @@ provider "azurerm" {
   features {}
 }
 
+locals {
+  sp_json = jsondecode(file("${path.module}/azureauth.json"))
+}
+
 variable "location" {
   type      = string
   default   = "southcentralus"
@@ -57,14 +61,11 @@ resource "null_resource" "acrimagebuildpush" {
                 --username ${azurerm_container_registry.acr.admin_username} \
                 --password ${azurerm_container_registry.acr.admin_password}
 
-      docker build -t ${var.name}registry.azurecr.io/frontend:v1 -f frontend.dockerfile .
+      docker build --build-arg BUILD_ENV=prod -t ${var.name}registry.azurecr.io/frontend:v1 -f frontend.dockerfile .
       docker push ${var.name}registry.azurecr.io/frontend:v1
 
       docker build -t ${var.name}registry.azurecr.io/backend:v1 -f backend.dockerfile .
       docker push ${var.name}registry.azurecr.io/backend:v1
-
-      docker build -t ${var.name}registry.azurecr.io/autoscaler:v1 -f autoscaler.dockerfile .
-      docker push ${var.name}registry.azurecr.io/autoscaler:v1
     EOT
   }
 
@@ -217,8 +218,8 @@ resource "azurerm_app_service_plan" "appserviceplan" {
   }
 }
 
-resource "azurerm_app_service" "apiservice" {
-  name                = "${var.name}apiservice"
+resource "azurerm_app_service" "appservice" {
+  name                = "${var.name}appservice"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   app_service_plan_id = azurerm_app_service_plan.appserviceplan.id
@@ -233,6 +234,12 @@ resource "azurerm_app_service" "apiservice" {
     "ORLEANS_CONFIG"                        = "STORAGE"
     "ASPNETCORE_ENVIRONMENT"                = "PRODUCTION"
     "AzureWebJobsStorage"                   = azurerm_storage_account.storage.primary_connection_string
+    "ACG_ROOT_NAME"                         = var.name
+    "LOG_ANALYTICS_WORKSPACE_ID"            = azurerm_log_analytics_workspace.la.workspace_id
+    "LOG_ANALYTICS_WORKSPACE_KEY"           = azurerm_log_analytics_workspace.la.primary_shared_key
+    "SERVICE_PRINCIPAL_ID"                  = local.sp_json.clientId
+    "SERVICE_PRINCIPAL_SECRET"              = local.sp_json.clientSecret
+    "SERVICE_PRINCIPAL_TENANT_ID"           = local.sp_json.tenantId
     "WEBSITES_ENABLE_APP_SERVICE_STORAGE"   = "false"
     "DOCKER_REGISTRY_SERVER_URL"            = azurerm_container_registry.acr.login_server,
     "DOCKER_REGISTRY_SERVER_USERNAME"       = azurerm_container_registry.acr.admin_username,
@@ -245,46 +252,8 @@ resource "azurerm_app_service" "apiservice" {
 }
 
 resource "azurerm_app_service_virtual_network_swift_connection" "appservicevnet" {
-  app_service_id = azurerm_app_service.apiservice.id
+  app_service_id = azurerm_app_service.appservice.id
   subnet_id      = azurerm_subnet.frontendsubnet.id
-}
-
-resource "azurerm_app_service" "autoscalerservice" {
-  name                = "${var.name}autoscalerservice"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  app_service_plan_id = azurerm_app_service_plan.appserviceplan.id
-
-  identity {
-    type  = "SystemAssigned"
-  }
-
-  site_config {
-    app_command_line  = ""
-    always_on         = false
-    linux_fx_version  = "DOCKER|${var.name}registry.azurecr.io/autoscaler:v1"
-  }
-
-  app_settings = {
-    "ASPNETCORE_ENVIRONMENT"                = "PRODUCTION"
-    "ACG_ROOT_NAME"                         = var.name
-    "LOG_ANALYTICS_WORKSPACE_ID"            = azurerm_log_analytics_workspace.la.id
-    "LOG_ANALYTICS_WORKSPACE_KEY"           = azurerm_log_analytics_workspace.la.primary_shared_key
-    "WEBSITES_ENABLE_APP_SERVICE_STORAGE"   = "false"
-    "DOCKER_REGISTRY_SERVER_URL"            = azurerm_container_registry.acr.login_server,
-    "DOCKER_REGISTRY_SERVER_USERNAME"       = azurerm_container_registry.acr.admin_username,
-    "DOCKER_REGISTRY_SERVER_PASSWORD"       = azurerm_container_registry.acr.admin_password
-  }
-
-  depends_on = [
-    null_resource.acrimagebuildpush
-  ]
-}
-
-resource "azurerm_role_assignment" "msirole" {
-  scope                = azurerm_resource_group.rg.id
-  role_definition_name = "Contributor"
-  principal_id         = azurerm_app_service.autoscalerservice.identity.0.principal_id
 }
 
 # need to add scheduled rule query alerts for:

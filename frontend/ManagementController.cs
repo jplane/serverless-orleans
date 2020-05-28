@@ -12,7 +12,7 @@ using Microsoft.Azure.Management.ContainerRegistry.Fluent;
 using Nito.AsyncEx;
 using Microsoft.Azure.Management.ContainerInstance.Fluent;
 
-namespace Autoscaler
+namespace Frontend
 {
     [ApiController]
     [Route("mgmt")]
@@ -91,19 +91,12 @@ namespace Autoscaler
             var la_resource_Id = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/{rg}/providers/microsoft.operationalinsights/workspaces/{la_name}";
             var resourceId = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/{rg}/providers/Microsoft.ContainerInstance/containerGroups/{aci_name}";
 
-            try
-            {
-                await azure.DiagnosticSettings
-                                .Define($"{aci_name}metricsoutput")
-                                .WithResource(resourceId)
-                                .WithLogAnalytics(la_resource_Id)
-                                    .WithMetric("AllMetrics", TimeSpan.FromMinutes(1), 7)
-                                .CreateAsync();
-            }
-            catch(Exception ex)
-            {
-                _log.LogError(ex, "Azure error");
-            }
+            await azure.DiagnosticSettings
+                            .Define($"{aci_name}metricsoutput")
+                            .WithResource(resourceId)
+                            .WithLogAnalytics(la_resource_Id)
+                                .WithMetric("AllMetrics", TimeSpan.FromMinutes(1), 7)
+                            .CreateAsync();
         }
 
         private async Task CreateNewAci(IAzure azure, string rg, string aci_name, string acr_uri, string acr_user)
@@ -181,8 +174,14 @@ namespace Autoscaler
             }
             else
             {
-                return factory.FromSystemAssignedManagedServiceIdentity(MSIResourceType.AppService,
-                                                                        AzureEnvironment.AzureGlobalCloud);
+                var tenantId = _config["SERVICE_PRINCIPAL_TENANT_ID"];
+                var servicePrincipalId = _config["SERVICE_PRINCIPAL_ID"];
+                var servicePrincipalSecret = _config["SERVICE_PRINCIPAL_SECRET"];
+
+                return factory.FromServicePrincipal(servicePrincipalId,
+                                                    servicePrincipalSecret,
+                                                    tenantId,
+                                                    AzureEnvironment.AzureGlobalCloud);
             }
         }
     }
