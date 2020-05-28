@@ -69,12 +69,14 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 ## Azure deployment
 
-Initialize and run the [Terraform deployment script](./deploy.tf):
+- [Log into the Azure CLI](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest)
+- Run [create-service-principal.sh](./create-service-principal.sh) to generate an [Azure SP](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals) used to add/remove ACI instances during autoscale events
+- Initialize and run terraform to create the Azure resources defined in [deploy.tf](./deploy.tf):
 
-<pre>
-terraform init
-terraform apply
-</pre>
+    <pre>
+    terraform init
+    terraform apply
+    </pre>
 
 ## Future plans
 
