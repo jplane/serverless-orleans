@@ -267,7 +267,9 @@ resource "azurerm_app_service" "autoscalerservice" {
 
   app_settings = {
     "ASPNETCORE_ENVIRONMENT"                = "PRODUCTION"
-    "ACG_ROOT_NAME"                         = "${var.name}"
+    "ACG_ROOT_NAME"                         = var.name
+    "LOG_ANALYTICS_WORKSPACE_ID"            = azurerm_log_analytics_workspace.la.id
+    "LOG_ANALYTICS_WORKSPACE_KEY"           = azurerm_log_analytics_workspace.la.primary_shared_key
     "WEBSITES_ENABLE_APP_SERVICE_STORAGE"   = "false"
     "DOCKER_REGISTRY_SERVER_URL"            = azurerm_container_registry.acr.login_server,
     "DOCKER_REGISTRY_SERVER_USERNAME"       = azurerm_container_registry.acr.admin_username,
