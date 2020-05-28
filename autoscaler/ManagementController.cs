@@ -12,7 +12,7 @@ using Microsoft.Azure.Management.ContainerRegistry.Fluent;
 using Nito.AsyncEx;
 using Microsoft.Azure.Management.ContainerInstance.Fluent;
 
-namespace Frontend
+namespace Autoscaler
 {
     [ApiController]
     [Route("mgmt")]
@@ -45,11 +45,12 @@ namespace Frontend
             var rg = $"{name}-rg";
 
             var aci_name = $"{name}cg{GetRandomString(4)}";
-            var acr_uri = $"$https://{name}registry.azurecr.io";
+            var acr_uri = $"{name}registry.azurecr.io";
             var acr_user = $"{name}registry";
+            var la_name = $"{name}loganalyticsworkspace";
 
             await CreateNewAci(azure, rg, aci_name, acr_uri, acr_user);
-            await CreateNewMetricsOutput(azure, rg, aci_name);
+            await CreateNewMetricsOutput(azure, rg, aci_name, la_name);
         }
 
         [HttpPost("scalein")]
@@ -71,35 +72,38 @@ namespace Frontend
                     var group = existingGroups.Where(g => ! g.Name.EndsWith("cg1234")).First();
 
                     await group.StopAsync();
-                    await azure.ContainerGroups.DeleteByIdAsync(group.Id);
                     await RemoveMetricsOutput(azure, rg, group.Name);
+                    await azure.ContainerGroups.DeleteByIdAsync(group.Id);
                 }
             }
         }
 
         private async Task RemoveMetricsOutput(IAzure azure, string rg, string aci_name)
         {
-            var resourceId = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/test/providers/Microsoft.ContainerInstance/containerGroups/{aci_name}";
+            var resourceId = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/{rg}/providers/Microsoft.ContainerInstance/containerGroups/{aci_name}";
             var diagnosticSettingName = $"{aci_name}metricsoutput";
 
             await azure.DiagnosticSettings.DeleteAsync(resourceId, diagnosticSettingName);
         }
 
-        private async Task CreateNewMetricsOutput(IAzure azure, string rg, string aci_name)
+        private async Task CreateNewMetricsOutput(IAzure azure, string rg, string aci_name, string la_name)
         {
-            var existingContainerGroup = (await GetRootActorContainerGroup(azure, rg));
+            var la_resource_Id = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/{rg}/providers/microsoft.operationalinsights/workspaces/{la_name}";
+            var resourceId = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/{rg}/providers/Microsoft.ContainerInstance/containerGroups/{aci_name}";
 
-            var la_wksp_id = existingContainerGroup.LogAnalytics.WorkspaceId;
-            var la_wksp_key = existingContainerGroup.LogAnalytics.WorkspaceKey;
-
-            var resourceId = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/test/providers/Microsoft.ContainerInstance/containerGroups/{aci_name}";
-
-            await azure.DiagnosticSettings
-                            .Define($"{aci_name}metricsoutput")
-                            .WithResource(resourceId)
-                            .WithLogAnalytics(la_wksp_id)
-                                .WithMetric("AllMetrics", TimeSpan.FromMinutes(1), 0)
-                            .CreateAsync();
+            try
+            {
+                await azure.DiagnosticSettings
+                                .Define($"{aci_name}metricsoutput")
+                                .WithResource(resourceId)
+                                .WithLogAnalytics(la_resource_Id)
+                                    .WithMetric("AllMetrics", TimeSpan.FromMinutes(1), 7)
+                                .CreateAsync();
+            }
+            catch(Exception ex)
+            {
+                _log.LogError(ex, "Azure error");
+            }
         }
 
         private async Task CreateNewAci(IAzure azure, string rg, string aci_name, string acr_uri, string acr_user)
@@ -111,11 +115,7 @@ namespace Frontend
             var existingContainerGroup = (await GetRootActorContainerGroup(azure, rg));
 
             var profileName = existingContainerGroup.NetworkProfileId.Split("/").Last();
-            var la_wksp_id = existingContainerGroup.LogAnalytics.WorkspaceId;
-            var la_wksp_key = existingContainerGroup.LogAnalytics.WorkspaceKey;
-
             var existingContainerInstance = existingContainerGroup.Containers.Single();
-
             var ports = existingContainerInstance.Value.Ports.Select(p => p.Port).ToArray();
             var image = existingContainerInstance.Value.Image;
             var env_vars = existingContainerInstance.Value.EnvironmentVariables.ToDictionary(e => e.Name, e => e.Value);
@@ -125,6 +125,9 @@ namespace Frontend
             // get ACR password
             var existingRegistry = await azure.ContainerRegistries.GetByResourceGroupAsync(rg, acr_user);
             var acr_pwd = (await existingRegistry.GetCredentialsAsync()).AccessKeys[AccessKeyType.Primary];
+
+            var la_workspace_id = _config["LOG_ANALYTICS_WORKSPACE_ID"];
+            var la_workspace_key = _config["LOG_ANALYTICS_WORKSPACE_KEY"];
 
             await azure.ContainerGroups
                             .Define(aci_name)
@@ -140,7 +143,7 @@ namespace Frontend
                                 .WithMemorySizeInGB(ram)
                                 .WithEnvironmentVariables(env_vars)
                                 .Attach()
-                            .WithLogAnalytics(la_wksp_id, la_wksp_key)
+                            .WithLogAnalytics(la_workspace_id, la_workspace_key)
                             .WithNetworkProfileId(azure.SubscriptionId, rg, profileName)
                             .CreateAsync();
         }
@@ -174,7 +177,7 @@ namespace Frontend
 
             if (_hostEnv.IsDevelopment())
             {
-                throw new NotSupportedException();
+                return factory.FromFile("./azureauth.json");
             }
             else
             {

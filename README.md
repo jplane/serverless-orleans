@@ -56,6 +56,7 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 - [.NET Core 3.x SDK](https://dotnet.microsoft.com/download)
 - [Azure Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/)
 - [Postman](https://www.postman.com/)
+- [Terraform](https://learn.hashicorp.com/terraform/getting-started/install.html)
 
 ## Local dev and debugging
 
@@ -63,15 +64,16 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 - Set breakpoints as desired
 - Launch the VS Code debugger with F5. VS Code will attach to the 'frontend' container with a remote debugger session
 - Using Storage Explorer, connect to Azurite emulated storage. Create a new queue called 'input' and add a message to it with a simple text body ('hello world' or similar)
-- Using Postman or curl, send an HTTP GET request to http://localhost:5000/api/messages
+- Using Postman or curl, send an HTTP GET request to http://localhost:5000/messages
 - When finished, right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Down'
 
 ## Azure deployment
 
-From a bash shell, run [azure_deploy.sh](./azure_deploy.sh) as follows:
+Initialize and run the [Terraform deployment script](./deploy.tf):
 
 <pre>
-./azure_deploy.sh <i>root-resources-name</i>
+terraform init
+terraform apply
 </pre>
 
 ## Future plans

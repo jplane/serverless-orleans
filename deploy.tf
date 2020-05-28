@@ -1,5 +1,6 @@
 provider "azurerm" {
-  version = "=1.44.0"
+  version = "=2.0.0"
+  features {}
 }
 
 variable "location" {
@@ -9,7 +10,7 @@ variable "location" {
 
 variable "name" {
     type    = string
-    default = "serverlessorleans"
+    default = "joshorleans"
 }
 
 variable "orleans_container_cpu_cores" {
@@ -56,13 +57,14 @@ resource "null_resource" "acrimagebuildpush" {
                 --username ${azurerm_container_registry.acr.admin_username} \
                 --password ${azurerm_container_registry.acr.admin_password}
 
-      docker build --build-arg BUILD_ENV=prod -t ${var.name}registry.azurecr.io/frontend:v1 -f frontend.dockerfile .
-
+      docker build -t ${var.name}registry.azurecr.io/frontend:v1 -f frontend.dockerfile .
       docker push ${var.name}registry.azurecr.io/frontend:v1
 
       docker build -t ${var.name}registry.azurecr.io/backend:v1 -f backend.dockerfile .
-
       docker push ${var.name}registry.azurecr.io/backend:v1
+
+      docker build -t ${var.name}registry.azurecr.io/autoscaler:v1 -f autoscaler.dockerfile .
+      docker push ${var.name}registry.azurecr.io/autoscaler:v1
     EOT
   }
 
@@ -85,15 +87,26 @@ resource "azurerm_virtual_network" "vnet" {
   address_space       = ["10.0.0.0/16"]
 }
 
-resource "azurerm_subnet" "gatewaysubnet" {
-  name                 = "gateway"
+resource "azurerm_subnet" "frontendsubnet" {
+  name                 = "${var.name}frontendsubnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefix       = "10.0.1.0/24"
+
+  delegation {
+    name = "delegationconfig"
+
+    service_delegation {
+      name    = "Microsoft.Web/serverFarms"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/action"
+      ]
+    }
+  }
 }
 
-resource "azurerm_subnet" "apisubnet" {
-  name                 = "api"
+resource "azurerm_subnet" "backendsubnet" {
+  name                 = "${var.name}backendsubnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefix       = "10.0.2.0/24"
@@ -107,99 +120,6 @@ resource "azurerm_subnet" "apisubnet" {
         "Microsoft.Network/virtualNetworks/subnets/action"
       ]
     }
-  }
-}
-
-resource "azurerm_subnet" "backendsubnet" {
-  name                 = "backend"
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefix       = "10.0.3.0/24"
-
-  delegation {
-    name = "delegationconfig"
-
-    service_delegation {
-      name    = "Microsoft.ContainerInstance/containerGroups"
-      actions = [
-        "Microsoft.Network/virtualNetworks/subnets/action"
-      ]
-    }
-  }
-}
-
-resource "azurerm_public_ip" "publicip" {
-  name                = "${var.name}publicip"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  allocation_method   = "Dynamic"
-}
-
-locals {
-  backend_address_pool_name      = "${azurerm_virtual_network.vnet.name}-beap"
-  frontend_port_name             = "${azurerm_virtual_network.vnet.name}-feport"
-  frontend_ip_configuration_name = "${azurerm_virtual_network.vnet.name}-feip"
-  http_setting_name              = "${azurerm_virtual_network.vnet.name}-be-htst"
-  listener_name                  = "${azurerm_virtual_network.vnet.name}-httplstn"
-  request_routing_rule_name      = "${azurerm_virtual_network.vnet.name}-rqrt"
-  redirect_configuration_name    = "${azurerm_virtual_network.vnet.name}-rdrcfg"
-}
-
-resource "azurerm_application_gateway" "gateway" {
-  name                = "${var.name}appgateway"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-
-  sku {
-    name     = "Standard_Small"
-    tier     = "Standard"
-    capacity = 1
-  }
-
-  gateway_ip_configuration {
-    name      = "my-gateway-ip-configuration"
-    subnet_id = azurerm_subnet.gatewaysubnet.id
-  }
-
-  frontend_port {
-    name = local.frontend_port_name
-    port = 80
-  }
-
-  frontend_ip_configuration {
-    name                 = local.frontend_ip_configuration_name
-    public_ip_address_id = azurerm_public_ip.publicip.id
-    subnet_id            = azurerm_subnet.gatewaysubnet.id
-  }
-
-  backend_address_pool {
-    name = local.backend_address_pool_name
-    ip_addresses = [
-      azurerm_container_group.apicg.ip_address
-    ]
-  }
-
-  backend_http_settings {
-    name                  = local.http_setting_name
-    cookie_based_affinity = "Disabled"
-    port                  = 80
-    protocol              = "Http"
-    request_timeout       = 30
-  }
-
-  http_listener {
-    name                           = local.listener_name
-    frontend_ip_configuration_name = local.frontend_ip_configuration_name
-    frontend_port_name             = local.frontend_port_name
-    protocol                       = "Http"
-  }
-
-  request_routing_rule {
-    name                       = local.request_routing_rule_name
-    rule_type                  = "Basic"
-    http_listener_name         = local.listener_name
-    backend_address_pool_name  = local.backend_address_pool_name
-    backend_http_settings_name = local.http_setting_name
   }
 }
 
@@ -218,7 +138,7 @@ resource "azurerm_network_profile" "backendnetworkprofile" {
   }
 }
 
-resource "azurerm_container_group" "backendcg" {
+resource "azurerm_container_group" "cg" {
   name                = "${var.name}cg1234"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
@@ -266,77 +186,92 @@ resource "azurerm_container_group" "backendcg" {
   ]
 }
 
-resource "azurerm_monitor_diagnostic_setting" "metricsoutput" {
-  name                          = "${azurerm_container_group.backendcg.name}metricsoutput"
-  target_resource_id            = azurerm_container_group.backendcg.id
-  log_analytics_workspace_id    = azurerm_log_analytics_workspace.la.id
+resource "null_resource" "metricsoutput" {
 
-  metric {
-    category = "AllMetrics"
-    retention_policy {
-      enabled   = true
-      days      = 7
-    }
+  provisioner "local-exec" {
+    command = <<EOT
+      az monitor diagnostic-settings create \
+          --resource ${azurerm_container_group.cg.id} \
+          --name ${azurerm_container_group.cg.name}metricsoutput \
+          --workspace ${azurerm_log_analytics_workspace.la.id} \
+          --metrics '[{"category": "AllMetrics", "enabled": true, "retentionPolicy": {"enabled": true, "days": 7}, "timeGrain": "PT1M"}]'
+    EOT
+  }
+
+  triggers = {
+    acg_id  = azurerm_container_group.cg.id
+    la_id   = azurerm_log_analytics_workspace.la.id
   }
 }
 
-resource "azurerm_network_profile" "apinetworkprofile" {
-  name                = "apinetworkprofile"
+resource "azurerm_app_service_plan" "appserviceplan" {
+  name                = "${var.name}appserviceplan"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+  kind                = "Linux"
+  reserved            = true
 
-  container_network_interface {
-    name = "containernic"
-
-    ip_configuration {
-      name      = "ipconfig"
-      subnet_id = azurerm_subnet.apisubnet.id
-    }
+  sku {
+    tier = "Standard"
+    size = "S1"
   }
 }
 
-resource "azurerm_container_group" "apicg" {
-  name                = "${var.name}cgapi"
+resource "azurerm_app_service" "apiservice" {
+  name                = "${var.name}apiservice"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  ip_address_type     = "private"
-  network_profile_id  = azurerm_network_profile.apinetworkprofile.id
-  os_type             = "Linux"
+  app_service_plan_id = azurerm_app_service_plan.appserviceplan.id
 
-  image_registry_credential {
-      server    = azurerm_container_registry.acr.login_server
-      username  = azurerm_container_registry.acr.admin_username
-      password  = azurerm_container_registry.acr.admin_password
+  site_config {
+    app_command_line  = ""
+    always_on         = true
+    linux_fx_version  = "DOCKER|${var.name}registry.azurecr.io/frontend:v1"
   }
 
-  diagnostics {
-      log_analytics {
-          workspace_id  = azurerm_log_analytics_workspace.la.workspace_id
-          workspace_key = azurerm_log_analytics_workspace.la.primary_shared_key
-      }
+  app_settings = {
+    "ORLEANS_CONFIG"                        = "STORAGE"
+    "ASPNETCORE_ENVIRONMENT"                = "PRODUCTION"
+    "AzureWebJobsStorage"                   = azurerm_storage_account.storage.primary_connection_string
+    "WEBSITES_ENABLE_APP_SERVICE_STORAGE"   = "false"
+    "DOCKER_REGISTRY_SERVER_URL"            = azurerm_container_registry.acr.login_server,
+    "DOCKER_REGISTRY_SERVER_USERNAME"       = azurerm_container_registry.acr.admin_username,
+    "DOCKER_REGISTRY_SERVER_PASSWORD"       = azurerm_container_registry.acr.admin_password
   }
 
-  container {
-    name   = "orleansapi"
-    image  = "${var.name}registry.azurecr.io/frontend:v1"
-    cpu    = var.orleans_container_cpu_cores
-    memory = var.orleans_container_memory_gb
+  depends_on = [
+    null_resource.acrimagebuildpush
+  ]
+}
 
-    environment_variables = {
-          "ORLEANS_CONFIG"          = "STORAGE"
-          "ASPNETCORE_ENVIRONMENT"  = "PRODUCTION"
-          "StorageConnectionString" = azurerm_storage_account.storage.primary_connection_string
-          "ACG_ROOT_NAME"           = var.name
-    }
+resource "azurerm_app_service_virtual_network_swift_connection" "appservicevnet" {
+  app_service_id = azurerm_app_service.apiservice.id
+  subnet_id      = azurerm_subnet.frontendsubnet.id
+}
 
-    ports {
-      port     = 80
-      protocol = "TCP"
-    }
-  }
+resource "azurerm_app_service" "autoscalerservice" {
+  name                = "${var.name}autoscalerservice"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  app_service_plan_id = azurerm_app_service_plan.appserviceplan.id
 
   identity {
     type  = "SystemAssigned"
+  }
+
+  site_config {
+    app_command_line  = ""
+    always_on         = false
+    linux_fx_version  = "DOCKER|${var.name}registry.azurecr.io/autoscaler:v1"
+  }
+
+  app_settings = {
+    "ASPNETCORE_ENVIRONMENT"                = "PRODUCTION"
+    "ACG_ROOT_NAME"                         = "${var.name}"
+    "WEBSITES_ENABLE_APP_SERVICE_STORAGE"   = "false"
+    "DOCKER_REGISTRY_SERVER_URL"            = azurerm_container_registry.acr.login_server,
+    "DOCKER_REGISTRY_SERVER_USERNAME"       = azurerm_container_registry.acr.admin_username,
+    "DOCKER_REGISTRY_SERVER_PASSWORD"       = azurerm_container_registry.acr.admin_password
   }
 
   depends_on = [
@@ -347,7 +282,7 @@ resource "azurerm_container_group" "apicg" {
 resource "azurerm_role_assignment" "msirole" {
   scope                = azurerm_resource_group.rg.id
   role_definition_name = "Contributor"
-  principal_id         = azurerm_container_group.apicg.identity.0.principal_id
+  principal_id         = azurerm_app_service.autoscalerservice.identity.0.principal_id
 }
 
 # need to add scheduled rule query alerts for:
