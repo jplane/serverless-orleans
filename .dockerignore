@@ -22,4 +22,6 @@
 **/secrets.dev.yaml
 **/values.dev.yaml
 **/local.settings.json
+**/.terraform
+*.tfstate*
 README.md

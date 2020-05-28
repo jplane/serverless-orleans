@@ -3,12 +3,11 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Azure.WebJobs.Extensions.EventGrid;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System;
 
-namespace Frontend
+namespace Autoscaler
 {
     public class Program
     {
@@ -35,13 +34,6 @@ namespace Frontend
                 });
             });
 
-            builder.ConfigureWebJobs(webJobsBuilder =>
-            {
-                webJobsBuilder.AddAzureStorageCoreServices();
-                webJobsBuilder.AddEventGrid();
-                webJobsBuilder.AddAzureStorage();
-            });
-
             builder.ConfigureLogging((context, loggingBuilder) =>
             {
                 loggingBuilder.AddConsole();
@@ -50,10 +42,6 @@ namespace Frontend
             builder.ConfigureServices(services =>
             {
                 services.AddControllers();
-
-                services.AddSingleton<ActorClientService>();
-                services.AddSingleton<IHostedService>(_ => _.GetService<ActorClientService>());
-                services.AddSingleton(_ => _.GetService<ActorClientService>().Client);
             });
 
             return builder.RunConsoleAsync();
