@@ -1,5 +1,5 @@
 provider "azurerm" {
-  version = "=2.0.0"
+  version = "=2.12.0"
   features {}
 }
 
@@ -25,6 +25,26 @@ variable "orleans_container_cpu_cores" {
 variable "orleans_container_memory_gb" {
     type    = string
     default = "1.5"
+}
+
+variable "scaleout_cpu_threshold" {
+    type    = number
+    default = 80
+}
+
+variable "scaleout_memory_threshold" {
+    type    = number
+    default = 80
+}
+
+variable "scalein_cpu_threshold" {
+    type    = number
+    default = 10
+}
+
+variable "scalein_memory_threshold" {
+    type    = number
+    default = 10
 }
 
 resource "azurerm_resource_group" "rg" {
@@ -92,7 +112,7 @@ resource "azurerm_subnet" "frontendsubnet" {
   name                 = "${var.name}frontendsubnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefix       = "10.0.1.0/24"
+  address_prefixes     = [ "10.0.1.0/24" ]
 
   delegation {
     name = "delegationconfig"
@@ -110,7 +130,7 @@ resource "azurerm_subnet" "backendsubnet" {
   name                 = "${var.name}backendsubnet"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefix       = "10.0.2.0/24"
+  address_prefixes     = [ "10.0.2.0/24" ]
 
   delegation {
     name = "delegationconfig"
@@ -256,9 +276,182 @@ resource "azurerm_app_service_virtual_network_swift_connection" "appservicevnet"
   subnet_id      = azurerm_subnet.frontendsubnet.id
 }
 
-# need to add scheduled rule query alerts for:
-#  cpu % scale out
-#  cpu % scale in
-#  memory % scale out
-#  memory % scale in
-#  https://www.terraform.io/docs/providers/azurerm/r/monitor_scheduled_query_rules_alert.html
+resource "azurerm_monitor_action_group" "scaleoutaction" {
+  name                = "${var.name}scaleoutaction"
+  resource_group_name = azurerm_resource_group.rg.name
+  short_name          = "scaleout"
+
+  webhook_receiver {
+    name                    = "webhook"
+    service_uri             = "https://${azurerm_app_service.appservice.default_site_hostname}/mgmt/scaleout"
+    use_common_alert_schema = true
+  }
+}
+
+resource "azurerm_monitor_action_group" "scaleinaction" {
+  name                = "${var.name}scaleinaction"
+  resource_group_name = azurerm_resource_group.rg.name
+  short_name          = "scalein"
+
+  webhook_receiver {
+    name                    = "webhook"
+    service_uri             = "https://${azurerm_app_service.appservice.default_site_hostname}/mgmt/scalein"
+    use_common_alert_schema = true
+  }
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert" "cpuscaleoutalert" {
+  name                = "${var.name}cpuscaleoutalert"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  action {
+    action_group = [
+      azurerm_monitor_action_group.scaleoutaction.id
+    ]
+  }
+
+  data_source_id = azurerm_log_analytics_workspace.la.id
+  description    = "scale out when avg aggregate CPU % consumed exceeds X"
+  enabled        = true
+
+  query       = format(<<-QUERY
+        // 1000 millicores == 1 CPU core
+        let configured_millicores = %s * 1000;
+        AzureMetrics
+        | where ResourceProvider == "MICROSOFT.CONTAINERINSTANCE"
+        | where MetricName == "CpuUsage"
+        | summarize AggregatedValue = ((sum(Total)/sum(Count))/configured_millicores) * 100 by ResourceProvider, bin(TimeGenerated, 1m)
+  QUERY
+    , var.orleans_container_cpu_cores)
+  
+  severity    = 1
+  frequency   = 5
+  time_window = 10
+  trigger {
+    operator  = "GreaterThan"
+    threshold = var.scaleout_cpu_threshold
+    metric_trigger {
+      operator            = "GreaterThan"
+      threshold           = 0
+      metric_trigger_type = "Consecutive"       # alert after two or more consecutive threshold breaches
+      metric_column       = "ResourceProvider"
+    }
+  }
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert" "cpuscaleinalert" {
+  name                = "${var.name}cpuscaleinalert"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  action {
+    action_group = [
+      azurerm_monitor_action_group.scaleinaction.id
+    ]
+  }
+
+  data_source_id = azurerm_log_analytics_workspace.la.id
+  description    = "scale in when avg aggregate CPU % consumed goes below X"
+  enabled        = true
+
+  query       = format(<<-QUERY
+        // 1000 millicores == 1 CPU core
+        let configured_millicores = %s * 1000;
+        AzureMetrics
+        | where ResourceProvider == "MICROSOFT.CONTAINERINSTANCE"
+        | where MetricName == "CpuUsage"
+        | summarize AggregatedValue = ((sum(Total)/sum(Count))/configured_millicores) * 100 by ResourceProvider, bin(TimeGenerated, 1m)
+  QUERY
+    , var.orleans_container_cpu_cores)
+  
+  severity    = 1
+  frequency   = 5
+  time_window = 10
+  trigger {
+    operator  = "LessThan"
+    threshold = var.scalein_cpu_threshold
+    metric_trigger {
+      operator            = "GreaterThan"
+      threshold           = 0
+      metric_trigger_type = "Consecutive"       # alert after two or more consecutive threshold breaches
+      metric_column       = "ResourceProvider"
+    }
+  }
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert" "memscaleoutalert" {
+  name                = "${var.name}memscaleoutalert"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  action {
+    action_group = [
+      azurerm_monitor_action_group.scaleoutaction.id
+    ]
+  }
+
+  data_source_id = azurerm_log_analytics_workspace.la.id
+  description    = "scale out when avg aggregate memory % consumed exceeds X"
+  enabled        = true
+
+  query       = <<-QUERY
+        let configured_memory_in_bytes = ${var.orleans_container_memory_gb} * 1024 * 1024 * 1024;
+        AzureMetrics
+        | where ResourceProvider == "MICROSOFT.CONTAINERINSTANCE"
+        | where MetricName == "MemoryUsage"
+        | summarize AggregatedValue = ((sum(Total)/sum(Count))/configured_memory_in_bytes) * 100 by ResourceProvider, bin(TimeGenerated, 1m)
+  QUERY
+  
+  severity    = 1
+  frequency   = 5
+  time_window = 10
+  trigger {
+    operator  = "GreaterThan"
+    threshold = var.scaleout_memory_threshold
+    metric_trigger {
+      operator            = "GreaterThan"
+      threshold           = 0
+      metric_trigger_type = "Consecutive"       # alert after two or more consecutive threshold breaches
+      metric_column       = "ResourceProvider"
+    }
+  }
+}
+
+resource "azurerm_monitor_scheduled_query_rules_alert" "memscaleinalert" {
+  name                = "${var.name}memscaleinalert"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  action {
+    action_group = [
+      azurerm_monitor_action_group.scaleinaction.id
+    ]
+  }
+
+  data_source_id = azurerm_log_analytics_workspace.la.id
+  description    = "scale in when avg aggregate memory % consumed goes below X"
+  enabled        = true
+
+  query       = <<-QUERY
+        let configured_memory_in_bytes = ${var.orleans_container_memory_gb} * 1024 * 1024 * 1024;
+        AzureMetrics
+        | where ResourceProvider == "MICROSOFT.CONTAINERINSTANCE"
+        | where MetricName == "MemoryUsage"
+        | summarize AggregatedValue = ((sum(Total)/sum(Count))/configured_memory_in_bytes) * 100 by ResourceProvider, bin(TimeGenerated, 1m)
+  QUERY
+  
+  severity    = 1
+  frequency   = 5
+  time_window = 10
+  trigger {
+    operator  = "LessThan"
+    threshold = var.scalein_memory_threshold
+    metric_trigger {
+      operator            = "GreaterThan"
+      threshold           = 0
+      metric_trigger_type = "Consecutive"       # alert after two or more consecutive threshold breaches
+      metric_column       = "ResourceProvider"
+    }
+  }
+}
