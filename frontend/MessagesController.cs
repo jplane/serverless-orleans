@@ -22,11 +22,12 @@ namespace Frontend
         }
 
         [HttpGet]
-        public async Task<string[]> GetMessages()
+        [Route("{actorId}")]
+        public async Task<string[]> GetMessages(long actorId)
         {
             _log.LogInformation("Getting messages");
 
-            var actor = _client.GetGrain<IMessageActor>(0);
+            var actor = _client.GetGrain<IMessageActor>(actorId);
 
             var messages = await actor.GetMessages();
 
