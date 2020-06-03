@@ -7,6 +7,7 @@ using Microsoft.Azure.WebJobs.Extensions.EventGrid;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System;
+using Orleans;
 
 namespace Frontend
 {
@@ -18,21 +19,32 @@ namespace Frontend
 
             builder.ConfigureWebHostDefaults(webBuilder =>
             {
-                webBuilder.Configure((ctx, app) =>
-                {
-                    if (ctx.HostingEnvironment.IsDevelopment())
+                webBuilder
+                    .ConfigureServices(services =>
                     {
-                        app.UseDeveloperExceptionPage();
-                    }
+                        services.AddSingleton<ActorClientService>();
+                        services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<ActorClientService>());
+                        services.AddSingleton<IClusterClient>(sp => sp.GetRequiredService<ActorClientService>().Client);
+                        services.AddSingleton<IGrainFactory>(sp => sp.GetRequiredService<IClusterClient>());
 
-                    app.UseHttpsRedirection();
-                    app.UseRouting();
-                    app.UseAuthorization();
-                    app.UseEndpoints(endpoints =>
+                        services.AddServicesForSelfHostedDashboard();
+                    })
+                    .Configure((ctx, app) =>
                     {
-                        endpoints.MapControllers();
+                        if (ctx.HostingEnvironment.IsDevelopment())
+                        {
+                            app.UseDeveloperExceptionPage();
+                        }
+
+                        app.UseOrleansDashboard(new OrleansDashboard.DashboardOptions { BasePath = "/dashboard" });
+                        app.UseHttpsRedirection();
+                        app.UseRouting();
+                        app.UseAuthorization();
+                        app.UseEndpoints(endpoints =>
+                        {
+                            endpoints.MapControllers();
+                        });
                     });
-                });
             });
 
             builder.ConfigureWebJobs(webJobsBuilder =>
@@ -50,10 +62,6 @@ namespace Frontend
             builder.ConfigureServices(services =>
             {
                 services.AddControllers();
-
-                services.AddSingleton<ActorClientService>();
-                services.AddSingleton<IHostedService>(_ => _.GetService<ActorClientService>());
-                services.AddSingleton(_ => _.GetService<ActorClientService>().Client);
             });
 
             return builder.RunConsoleAsync();

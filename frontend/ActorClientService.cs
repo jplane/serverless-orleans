@@ -29,7 +29,9 @@ namespace Frontend
                         options.ClusterId = "serverlessorleans";
                         options.ServiceId = "serverlessorleans";
                     })
-                    .ConfigureLogging(builder => builder.AddConsole());
+                    .ConfigureLogging(builder => builder.AddConsole())
+                    .ConfigureApplicationParts(parts => parts.AddFromApplicationBaseDirectory())
+                    .UseDashboard();
 
             var env = _config["ORLEANS_CONFIG"];
 
