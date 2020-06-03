@@ -39,7 +39,7 @@ namespace Frontend
         {
             _log.LogInformation("Scaling out the actor cluster");
 
-            var azure = await GetAzureContext();
+            var azure = await GetAzureContext().ConfigureAwait(false);
 
             var name = _config["ACG_ROOT_NAME"];
             var rg = $"{name}-rg";
@@ -49,8 +49,8 @@ namespace Frontend
             var acr_user = $"{name}registry";
             var la_name = $"{name}loganalyticsworkspace";
 
-            await CreateNewAci(azure, rg, aci_name, acr_uri, acr_user);
-            await CreateNewMetricsOutput(azure, rg, aci_name, la_name);
+            await CreateNewAci(azure, rg, aci_name, acr_uri, acr_user).ConfigureAwait(false);
+            await CreateNewMetricsOutput(azure, rg, aci_name, la_name).ConfigureAwait(false);
         }
 
         [HttpPost("scalein")]
@@ -58,22 +58,22 @@ namespace Frontend
         {
             _log.LogInformation("Scaling in the actor cluster");
 
-            var azure = await GetAzureContext();
+            var azure = await GetAzureContext().ConfigureAwait(false);
 
             var name = _config["ACG_ROOT_NAME"];
             var rg = $"{name}-rg";
 
             using (await _mutex.LockAsync())
             {
-                var existingGroups = await azure.ContainerGroups.ListByResourceGroupAsync(rg);
+                var existingGroups = await azure.ContainerGroups.ListByResourceGroupAsync(rg).ConfigureAwait(false);
 
                 if (existingGroups.Count() > 1)
                 {
                     var group = existingGroups.Where(g => ! g.Name.EndsWith("cg1234")).First();
 
-                    await group.StopAsync();
-                    await RemoveMetricsOutput(azure, rg, group.Name);
-                    await azure.ContainerGroups.DeleteByIdAsync(group.Id);
+                    await group.StopAsync().ConfigureAwait(false);
+                    await RemoveMetricsOutput(azure, rg, group.Name).ConfigureAwait(false);
+                    await azure.ContainerGroups.DeleteByIdAsync(group.Id).ConfigureAwait(false);
                 }
             }
         }
@@ -83,7 +83,7 @@ namespace Frontend
             var resourceId = $"/subscriptions/{azure.SubscriptionId}/resourcegroups/{rg}/providers/Microsoft.ContainerInstance/containerGroups/{aci_name}";
             var diagnosticSettingName = $"{aci_name}metricsoutput";
 
-            await azure.DiagnosticSettings.DeleteAsync(resourceId, diagnosticSettingName);
+            await azure.DiagnosticSettings.DeleteAsync(resourceId, diagnosticSettingName).ConfigureAwait(false);
         }
 
         private async Task CreateNewMetricsOutput(IAzure azure, string rg, string aci_name, string la_name)
@@ -96,7 +96,8 @@ namespace Frontend
                             .WithResource(resourceId)
                             .WithLogAnalytics(la_resource_Id)
                                 .WithMetric("AllMetrics", TimeSpan.FromMinutes(1), 7)
-                            .CreateAsync();
+                            .CreateAsync()
+                            .ConfigureAwait(false);
         }
 
         private async Task CreateNewAci(IAzure azure, string rg, string aci_name, string acr_uri, string acr_user)
@@ -105,7 +106,7 @@ namespace Frontend
             // there is no means to query network profiles via .NET SDK <sigh>
             //  also, when you get a profile ID from an existing container it comes as a single string,
             //  and below we need it in separate chunks <sigh> <sigh>
-            var existingContainerGroup = (await GetRootActorContainerGroup(azure, rg));
+            var existingContainerGroup = (await GetRootActorContainerGroup(azure, rg).ConfigureAwait(false));
 
             var profileName = existingContainerGroup.NetworkProfileId.Split("/").Last();
             var existingContainerInstance = existingContainerGroup.Containers.Single();
@@ -116,8 +117,8 @@ namespace Frontend
             var ram = existingContainerInstance.Value.Resources.Requests.MemoryInGB;
 
             // get ACR password
-            var existingRegistry = await azure.ContainerRegistries.GetByResourceGroupAsync(rg, acr_user);
-            var acr_pwd = (await existingRegistry.GetCredentialsAsync()).AccessKeys[AccessKeyType.Primary];
+            var existingRegistry = await azure.ContainerRegistries.GetByResourceGroupAsync(rg, acr_user).ConfigureAwait(false);
+            var acr_pwd = (await existingRegistry.GetCredentialsAsync().ConfigureAwait(false)).AccessKeys[AccessKeyType.Primary];
 
             var la_workspace_id = _config["LOG_ANALYTICS_WORKSPACE_ID"];
             var la_workspace_key = _config["LOG_ANALYTICS_WORKSPACE_KEY"];
@@ -138,7 +139,8 @@ namespace Frontend
                                 .Attach()
                             .WithLogAnalytics(la_workspace_id, la_workspace_key)
                             .WithNetworkProfileId(azure.SubscriptionId, rg, profileName)
-                            .CreateAsync();
+                            .CreateAsync()
+                            .ConfigureAwait(false);
         }
 
         private Task<IContainerGroup> GetRootActorContainerGroup(IAzure azure, string resourceGroup)
@@ -161,7 +163,7 @@ namespace Frontend
         private async Task<IAzure> GetAzureContext()
         {
             var creds = GetAzureCredentials();
-            return await Azure.Authenticate(creds).WithDefaultSubscriptionAsync();
+            return await Azure.Authenticate(creds).WithDefaultSubscriptionAsync().ConfigureAwait(false);
         }
 
         private AzureCredentials GetAzureCredentials()

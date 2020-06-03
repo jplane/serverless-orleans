@@ -30,7 +30,7 @@ namespace Frontend
 
             var actor = _client.GetGrain<IMessageActor>(msg.actorId);
 
-            await actor.AddMessage(msg.message);
+            await actor.AddMessage(msg.message).ConfigureAwait(false);
         }
     }
 }
