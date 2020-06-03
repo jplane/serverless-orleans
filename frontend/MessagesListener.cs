@@ -6,6 +6,7 @@ using Actors;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage.Queue;
+using Newtonsoft.Json;
 using Orleans;
 
 namespace Frontend
@@ -21,13 +22,15 @@ namespace Frontend
             _log = log;
         }
 
-        public async Task ProcessQueueMessage([QueueTrigger("input")] CloudQueueMessage message)
+        public async Task ProcessQueueMessage([QueueTrigger("input")] CloudQueueMessage item)
         {
-            _log.LogInformation("Queue message received: " + message.Id);
+            _log.LogInformation("Queue message received: " + item.Id);
 
-            var actor = _client.GetGrain<IMessageActor>(0);
+            var msg = JsonConvert.DeserializeAnonymousType(item.AsString, new { actorId = 0L, message = "" });
 
-            await actor.AddMessage(message.AsString);
+            var actor = _client.GetGrain<IMessageActor>(msg.actorId);
+
+            await actor.AddMessage(msg.message);
         }
     }
 }

@@ -23,7 +23,7 @@ namespace Actors
         {
             _log.LogInformation("Adding message: " + message);
 
-            _state.State.AddMessage(message);
+            _state.State.Messages.Add(message);
 
             await _state.WriteStateAsync();
         }
@@ -32,17 +32,13 @@ namespace Actors
         {
             _log.LogInformation("Reading messages");
 
-            return Task.FromResult(_state.State.GetMessages());
+            return Task.FromResult(_state.State.Messages.AsEnumerable());
         }
     }
 
     [Serializable]
     public class MessageState
     {
-        private readonly List<string> _messages = new List<string>();
-
-        public void AddMessage(string message) => _messages.Add(message);
-
-        public IEnumerable<string> GetMessages() => _messages;
+        public List<string> Messages = new List<string>();
     }
 }

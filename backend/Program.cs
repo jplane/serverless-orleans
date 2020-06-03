@@ -42,6 +42,7 @@ namespace Backend
                     {
                         options.ConnectionString = Environment.GetEnvironmentVariable("StorageConnectionString");
                         options.UseJson = true;
+                        options.IndentJson = true;
                         options.ContainerName = "actorstate";
                     })
                     .UseAzureStorageClustering(options =>
@@ -58,6 +59,7 @@ namespace Backend
                     {
                         options.Invariant = "System.Data.SqlClient";
                         options.UseJsonFormat = true;
+                        options.IndentJson = true;
                         options.ConnectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
                     })
                     .UseAdoNetClustering(options =>
