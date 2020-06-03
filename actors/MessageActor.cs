@@ -25,7 +25,7 @@ namespace Actors
 
             _state.State.Messages.Add(message);
 
-            await _state.WriteStateAsync();
+            await _state.WriteStateAsync().ConfigureAwait(false);
         }
 
         public Task<IEnumerable<string>> GetMessages()

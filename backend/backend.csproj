@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.Orleans.Persistence.AdoNet" Version="3.1.6" />
     <PackageReference Include="Microsoft.Orleans.Clustering.AdoNet" Version="3.1.6" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.1" />
+    <PackageReference Include="OrleansDashboard" Version="3.1.0" />
   </ItemGroup>
 
   <ItemGroup>

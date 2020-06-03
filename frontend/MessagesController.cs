@@ -29,7 +29,7 @@ namespace Frontend
 
             var actor = _client.GetGrain<IMessageActor>(actorId);
 
-            var messages = await actor.GetMessages();
+            var messages = await actor.GetMessages().ConfigureAwait(false);
 
             return messages.ToArray();
         }

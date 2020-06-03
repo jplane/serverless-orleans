@@ -33,6 +33,12 @@ namespace Backend
                 {
                     options.ClusterId = "serverlessorleans";
                     options.ServiceId = "serverlessorleans";
+                })
+                .ConfigureApplicationParts(parts => parts.AddFromApplicationBaseDirectory())
+                .UseDashboard(options =>
+                {
+                    options.CounterUpdateIntervalMs = 5000;
+                    options.HostSelf = false;
                 });
 
             if (env == "STORAGE")
