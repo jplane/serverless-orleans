@@ -33,5 +33,16 @@ namespace Frontend
 
             return messages.ToArray();
         }
+
+        [HttpPost]
+        [Route("{actorId}")]
+        public async Task AddMessage(long actorId, [FromBody] string message)
+        {
+            _log.LogInformation("Adding a message");
+
+            var actor = _client.GetGrain<IMessageActor>(actorId);
+
+            await actor.AddMessage(message).ConfigureAwait(false);
+        }
     }
 }

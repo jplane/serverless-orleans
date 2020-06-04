@@ -81,5 +81,5 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 ## Future plans
 
 - [Event-sourced](https://dotnet.github.io/orleans/Documentation/grains/event_sourcing/index.html) actor state
-- Scalability and load testing (multiple app service nodes, etc.)
+- Scalability and load testing (multiple ACI nodes, etc.)
 - Node.js and/or Python interop (define actor logic in Node or Python, with a common .NET foundation)
