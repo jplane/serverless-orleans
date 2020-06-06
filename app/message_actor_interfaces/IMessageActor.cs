@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Actors
+namespace MessageApp
 {
     public interface IMessageActor : Orleans.IGrainWithIntegerKey
     {

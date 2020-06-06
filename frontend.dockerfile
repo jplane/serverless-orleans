@@ -6,11 +6,9 @@ RUN if [ "$BUILD_ENV" = "dev" ]; then \
         mkdir /publish; \
         cp ./azureauth.json /publish/azureauth.json; \
     fi
-COPY ./frontend ./frontend
-COPY ./interfaces ./interfaces
-RUN dotnet publish "./frontend/frontend.csproj" -c Release -o /publish
+COPY ./app/message_actor_interfaces ./message_actor_interfaces
+COPY ./app/message_app ./message_app
+RUN dotnet publish "./message_app/Message.App.csproj" -c Release -o /publish
 
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1
-WORKDIR /app
-COPY --from=build /publish .
-ENTRYPOINT ["dotnet", "frontend.dll"]
+FROM serverlessorleans/frontend-base:v1
+COPY --from=build /publish ./app

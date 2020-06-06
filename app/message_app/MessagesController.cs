@@ -1,12 +1,11 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Actors;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Orleans;
 
-namespace Frontend
+namespace MessageApp
 {
     [ApiController]
     [Route("messages")]

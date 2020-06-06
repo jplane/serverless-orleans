@@ -4,6 +4,16 @@ The goal of this project is to demonstrate a pragmatic approach to developing an
 
 ![architecture](./architecture.png)
 
+The codebase is separated into two parts:
+
+- [/base](./base) contains the core frontend and backend implementation, but no application-specific code. The Docker containers created from this code can be re-used across multiple solution stacks.
+
+- [/app](./app) contains a simple example app built upon the foundation code in [/base](./base). Specifically it contains an actor implementation and ASP.NET Core controller and webjob listener code that invokes the actor.
+
+At runtime, the application-specific code is injected into the runtime host processes using [dynamic assembly loading](https://docs.microsoft.com/en-us/dotnet/api/system.reflection.assembly.loadfrom?view=netcore-3.1). This eliminates the need for static .NET dependencies and allows solution-specific code to be developed and tested independently.
+
+The purpose of this separation is to hide the core foundational details in [/base](./base) from application developers, who can instead focus on more familiar, solution-specific details like the code in [/app](./app).
+
 ## Why Azure Container Instances?
 
 A major drawback of most actor-based systems is the need to manage infrastructure. [Durable Entities](https://docs.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-entities?tabs=csharp) solves this problem by layering an actor implementation on top of serverless Azure Functions; however, the DE actor implementation is rudimentary compared to other options and there are relatively few "knobs to twist" to optimize performance/scale for specific scenarios.
@@ -16,8 +26,8 @@ One drawback of ACI is the lack of an autoscale mechanism (something AKS does we
 
 In actor-based systems, actor instances typically interact with the outside world in one of two ways:
 
-- direct invocation of actor methods, often from an API exposed to client applications, demonstrated [here](./host/MessagesController.cs)
-- actors listen for and respond to external events... messages arriving on a queue, etc., demonstrated [here](./host/MessagesListener.cs)
+- external processes invoke an API which uses actor invocations as part of its implementation, demonstrated [here](./app/message_app/MessagesController.cs)
+- a listener process subscribes to external events and invokes actors upon event arrival, demonstrated [here](./app/message_app/MessagesListener.cs)
 
 Azure Functions have built-in support for [event-based triggers](https://docs.microsoft.com/en-us/azure/azure-functions/functions-triggers-bindings), and are an obvious choice to model the second pattern above. The issue with Functions is that they (by design) provide limited ability to configure the underlying host, which interferes with the ability to inject startup and configuration needed for efficient communication with Orleans clusters.
 
@@ -60,6 +70,8 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 ## Local dev and debugging
 
+- Run [create-service-principal.sh](./create-service-principal.sh) to generate an [Azure SP](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals) used to add/remove ACI instances during autoscale events
+- Run [build-base-images.sh](./build-base-images.sh) to create the base Docker images for solution frontend (API, event listeners, and dashboards) and backend (actor host)
 - Right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Up'. This will build and launch the containers defined in the YAML file
 - Set breakpoints as desired
 - Launch the VS Code debugger with F5. VS Code will attach to the 'frontend' container with a remote debugger session
@@ -70,7 +82,6 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 ## Azure deployment
 
 - [Log into the Azure CLI](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest)
-- Run [create-service-principal.sh](./create-service-principal.sh) to generate an [Azure SP](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals) used to add/remove ACI instances during autoscale events
 - Initialize and run terraform to create the Azure resources defined in [deploy.tf](./deploy.tf):
 
     <pre>

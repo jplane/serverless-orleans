@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Orleans.Runtime;
 
-namespace Actors
+namespace MessageApp
 {
     public class MessageActor : Orleans.Grain, IMessageActor
     {

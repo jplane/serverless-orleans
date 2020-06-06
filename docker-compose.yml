@@ -4,7 +4,7 @@ services:
 
   frontend:
     container_name: frontend
-    image: orleansfrontend:dev
+    image: frontend:dev
     build:
       context: .
       dockerfile: frontend.dockerfile
@@ -29,7 +29,7 @@ services:
 
   backend:
     container_name: backend
-    image: orleansbackend:dev
+    image: backend:dev
     build:
       context: .
       dockerfile: backend.dockerfile

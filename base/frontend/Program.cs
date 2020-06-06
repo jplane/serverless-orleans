@@ -1,13 +1,15 @@
-using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Azure.WebJobs.Extensions.EventGrid;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using System;
 using Orleans;
+using System.Linq;
+using Microsoft.Azure.WebJobs;
+using System.Collections.Generic;
+using System.Reflection;
+using System;
 
 namespace Frontend
 {
@@ -15,6 +17,8 @@ namespace Frontend
     {
         public static Task Main(string[] args)
         {
+            var externalAssemblies = ActorClientService.ExternalAssemblies;
+
             var builder = Host.CreateDefaultBuilder(args);
 
             builder.ConfigureWebHostDefaults(webBuilder =>
@@ -50,8 +54,9 @@ namespace Frontend
             builder.ConfigureWebJobs(webJobsBuilder =>
             {
                 webJobsBuilder.AddAzureStorageCoreServices();
-                webJobsBuilder.AddEventGrid();
                 webJobsBuilder.AddAzureStorage();
+
+                InjectWebJobTypeLocator(webJobsBuilder, externalAssemblies);
             });
 
             builder.ConfigureLogging((context, loggingBuilder) =>
@@ -61,10 +66,40 @@ namespace Frontend
 
             builder.ConfigureServices(services =>
             {
-                services.AddControllers();
+                var mvcBuilder = services.AddControllers();
+
+                foreach(var assembly in externalAssemblies)
+                {
+                    mvcBuilder.AddApplicationPart(assembly);
+                }
             });
 
             return builder.RunConsoleAsync();
+        }
+
+        private static void InjectWebJobTypeLocator(IWebJobsBuilder webJobsBuilder,
+                                                    IEnumerable<Assembly> externalAssemblies)
+        {
+            var locatorType = typeof(ITypeLocator).FullName;
+            
+            var type = externalAssemblies.SelectMany(a => a.GetTypes())
+                                         .SingleOrDefault(t => t.IsPublic && t.GetInterface(locatorType) != null);
+
+            if (type == null)
+            {
+                throw new Exception("Unable to resolve single public implementation of type: " + locatorType);
+            }
+
+            var locator = (ITypeLocator) Activator.CreateInstance(type);
+
+            var existingTypeResolverDescriptor = webJobsBuilder
+                                                    .Services
+                                                    .Where(d => d.ServiceType == typeof(ITypeLocator))
+                                                    .ToArray();
+                
+            Array.ForEach(existingTypeResolverDescriptor, d => webJobsBuilder.Services.Remove(d));
+
+            webJobsBuilder.Services.AddSingleton<ITypeLocator>(locator);
         }
     }
 }
