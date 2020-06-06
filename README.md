@@ -10,17 +10,26 @@ The codebase is separated into two parts:
 
 - [/app](./app) contains a simple example app built upon the foundation code in [/base](./base). Specifically it contains an actor implementation and ASP.NET Core controller and webjob listener code that invokes the actor.
 
-At runtime, the application-specific code is injected into the runtime host processes using [dynamic assembly loading](https://docs.microsoft.com/en-us/dotnet/api/system.reflection.assembly.loadfrom?view=netcore-3.1). This eliminates the need for static .NET dependencies and allows solution-specific code to be developed and tested independently.
+At runtime, the application-specific code is injected into the runtime host processes using [dynamic assembly loading](https://docs.microsoft.com/en-us/dotnet/api/system.reflection.assembly.loadfrom?view=netcore-3.1). This eliminates the need for static .NET dependencies and allows solution-specific code to be developed and tested independently from the core runtime.
 
-The purpose of this separation is to hide the core foundational details in [/base](./base) from application developers, who can instead focus on more familiar, solution-specific details like the code in [/app](./app).
+## Design Goals
 
-## Why Azure Container Instances?
+- [API](./app/message_app/MessagesController.cs)- and [event-based](./app/message_app/MessagesListener.cs) abstractions between actors and the external world (no direct access to actors)
+- logical and physical separation between [actor host](./base/backend) and [actor abstractions](./base/frontend)... allow each to be configured and scale independently
+- logical separation between [infrastructure code](./base) and [solution code](./app)... maximize app developer productivity by hiding infra details as much as possible
+- allow all infrastructure knobs to be twisted, if/when desired (ACI or Orleans config, etc.)
+- [run and debug](./docker-compose.yml) the full solution stack on your laptop (no Azure needed)
+- [single command build and deploy](./deploy.tf) of the full solution stack to Azure, using lightweight PaaS services where possible
+
+## Why Azure Container Instances (and why not AKS)?
 
 A major drawback of most actor-based systems is the need to manage infrastructure. [Durable Entities](https://docs.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-entities?tabs=csharp) solves this problem by layering an actor implementation on top of serverless Azure Functions; however, the DE actor implementation is rudimentary compared to other options and there are relatively few "knobs to twist" to optimize performance/scale for specific scenarios.
 
 [Azure Container Instances](https://docs.microsoft.com/en-us/azure/container-instances/) provide a simple mechanism to run containers in Azure, without the overhead and management burden of a full-blown Kubernetes orchestrator underneath. You can configure VM size, vnet integration, etc. for running containers.
 
 One drawback of ACI is the lack of an autoscale mechanism (something AKS does well). This project addresses this by hooking [alerts surfaced from Azure Monitor metrics](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/alerts-metric). Alert rules are defined for CPU min/max thresholds, as well as webhook-based actions that execute when rule conditions are met; the webhook implementations add or remove ACI instances as needed to ensure adequate resources for in-flight, actor-based workloads.
+
+[Azure Kubernetes Service](https://docs.microsoft.com/en-us/azure/aks/) is a great option for hosting elastically scaled infrastructure like actors. However, there are project and organizational contexts in which AKS and Kubernetes more generally represent a significant ongoing management burden; this project is an attempt to explore other options. That said, AKS + a [bit](https://docs.microsoft.com/en-us/azure/aks/cluster-autoscaler) of [config](https://docs.microsoft.com/en-us/azure/aks/tutorial-kubernetes-scale#autoscale-pods) would make a good host for the backend actor infrastructure of this project, at minimum.
 
 ## Why Azure App Service + WebJobs (and why not Azure Functions)?
 
@@ -84,10 +93,10 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 - [Log into the Azure CLI](https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest)
 - Initialize and run terraform to create the Azure resources defined in [deploy.tf](./deploy.tf):
 
-    <pre>
+ <pre>
     terraform init
     terraform apply
-    </pre>
+</pre>
 
 ## Future plans
 
