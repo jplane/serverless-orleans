@@ -79,8 +79,14 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 - Right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Up'. This will build and launch the containers defined in the YAML file
 - Set breakpoints as desired
 - Launch the VS Code debugger with F5. VS Code will attach to the 'frontend' container with a remote debugger session
-- Using Storage Explorer, connect to Azurite emulated storage. Create a new queue called 'input' and add a message to it with a simple text body ('hello world' or similar)
-- Using Postman or curl, send an HTTP GET request to http://localhost:5000/messages
+- If desired, open http://localhost:5000/dashboard in your browser to see the Orleans telemetry dashboard
+- Using Storage Explorer, connect to Azurite emulated storage. Create a new queue called 'input' and add the following JSON payload:
+
+    ```json
+    { "actorId": 5, "message": "hello world" }
+    ```
+
+- Using Postman or curl, send an HTTP GET request to http://localhost:5000/messages/5 to verify the queue message was processed successfully
 - When finished, right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Down'
 
 ## Azure deployment
