@@ -29,16 +29,11 @@ A major drawback of most actor-based systems is the need to manage infrastructur
 
 One drawback of ACI is the lack of an autoscale mechanism (something AKS does well). This project addresses this by hooking [alerts surfaced from Azure Monitor metrics](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/alerts-metric). Alert rules are defined for CPU min/max thresholds, as well as webhook-based actions that execute when rule conditions are met; the webhook implementations add or remove ACI instances as needed to ensure adequate resources for in-flight, actor-based workloads.
 
-[Azure Kubernetes Service](https://docs.microsoft.com/en-us/azure/aks/) is a great option for hosting elastically scaled infrastructure like actors. However, there are project and organizational contexts in which AKS and Kubernetes more generally represent a significant ongoing management burden; this project is an attempt to explore other options. That said, AKS + a [bit](https://docs.microsoft.com/en-us/azure/aks/cluster-autoscaler) of [config](https://docs.microsoft.com/en-us/azure/aks/tutorial-kubernetes-scale#autoscale-pods) would make a good host for the backend actor infrastructure of this project, at minimum.
+[Azure Kubernetes Service](https://docs.microsoft.com/en-us/azure/aks/) is a great option for hosting elastically scaled infrastructure like actors. However, there are project and organizational contexts in which AKS and Kubernetes more generally represent an undesirable management burden; this project is an attempt to explore other options. That said, AKS + a [bit](https://docs.microsoft.com/en-us/azure/aks/cluster-autoscaler) of [config](https://docs.microsoft.com/en-us/azure/aks/tutorial-kubernetes-scale#autoscale-pods) would make a perfectly reasonable host for this solution.
 
 ## Why Azure App Service + WebJobs (and why not Azure Functions)?
 
-In actor-based systems, actor instances typically interact with the outside world in one of two ways:
-
-- external processes invoke an API which uses actor invocations as part of its implementation, demonstrated [here](./app/message_app/MessagesController.cs)
-- a listener process subscribes to external events and invokes actors upon event arrival, demonstrated [here](./app/message_app/MessagesListener.cs)
-
-Azure Functions have built-in support for [event-based triggers](https://docs.microsoft.com/en-us/azure/azure-functions/functions-triggers-bindings), and are an obvious choice to model the second pattern above. The issue with Functions is that they (by design) provide limited ability to configure the underlying host, which interferes with the ability to inject startup and configuration needed for efficient communication with Orleans clusters.
+Azure Functions have built-in support for [event-based triggers](https://docs.microsoft.com/en-us/azure/azure-functions/functions-triggers-bindings), and are an obvious choice to model both APIs and event-driven endpoints. The issue with Functions is that they (by design) provide limited ability to configure the underlying host, which interferes with the ability to inject startup and configuration needed for communication with remote Orleans clusters.
 
 An alternative is to [use the WebJobs runtime and SDK](https://docs.microsoft.com/en-us/azure/app-service/webjobs-sdk-how-to) directly. Functions are built on top of WebJobs; the trigger mechanisms in Functions are defined in terms of WebJobs primitives and can be used from WebJobs code. In addition, WebJobs allow full configuration of the host process and are therefore a good fit here.
 
