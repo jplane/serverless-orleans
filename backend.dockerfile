@@ -1,11 +1,8 @@
 FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS build
 WORKDIR /src
-COPY ./backend ./backend
-COPY ./actors ./actors
-COPY ./interfaces ./interfaces
-RUN dotnet publish "./backend/backend.csproj" -c Release -o /publish
+COPY ./app/message_actor_interfaces ./message_actor_interfaces
+COPY ./app/message_actors ./message_actors
+RUN dotnet publish "./message_actors/Message.Actors.csproj" -c Release -o /publish
 
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1
-WORKDIR /app
-COPY --from=build /publish .
-ENTRYPOINT ["dotnet", "backend.dll"]
+FROM serverlessorleans/backend-base:v1
+COPY --from=build /publish ./app

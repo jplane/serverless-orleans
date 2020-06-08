@@ -19,9 +19,4 @@
     <PackageReference Include="OrleansDashboard" Version="3.1.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\interfaces\interfaces.csproj" />
-    <ProjectReference Include="..\actors\actors.csproj" />
-  </ItemGroup>
-
 </Project>

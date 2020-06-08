@@ -9,6 +9,10 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading;
 using System.Runtime.Loader;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Linq;
+using System.IO;
 
 namespace Backend
 {
@@ -19,6 +23,8 @@ namespace Backend
         
         public static void Main(string[] args)
         {
+            var externalAssemblies = LoadExternalAssemblies().ToArray();
+
             var env = Environment.GetEnvironmentVariable("ORLEANS_CONFIG");
 
             var builder = new SiloHostBuilder();
@@ -34,7 +40,14 @@ namespace Backend
                     options.ClusterId = "serverlessorleans";
                     options.ServiceId = "serverlessorleans";
                 })
-                .ConfigureApplicationParts(parts => parts.AddFromApplicationBaseDirectory())
+                .ConfigureApplicationParts(parts =>
+                {
+                    foreach(var assembly in externalAssemblies)
+                    {
+                        System.Console.WriteLine("Loading orleans app parts: " + assembly.FullName);
+                        parts.AddApplicationPart(assembly);
+                    }
+                })
                 .UseDashboard(options =>
                 {
                     options.CounterUpdateIntervalMs = 5000;
@@ -104,6 +117,16 @@ namespace Backend
             await _silo.StopAsync();
             Console.WriteLine("Silo stopped");
             _siloStopped.Set();
+        }
+
+        private static IEnumerable<Assembly> LoadExternalAssemblies()
+        {
+            var appPath = AppDomain.CurrentDomain.BaseDirectory + "/app";
+
+            foreach(var assemblyPath in Directory.GetFiles(appPath, "*.dll"))
+            {
+                yield return Assembly.LoadFrom(assemblyPath);
+            }
         }
     }
 }

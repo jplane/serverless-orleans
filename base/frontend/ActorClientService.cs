@@ -7,11 +7,16 @@ using System;
 using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
+using System.Reflection;
+using System.IO;
 
 namespace Frontend
 {
     public class ActorClientService : IHostedService
     {
+        private static List<Assembly> _externalAssemblies = new List<Assembly>();
+
         private readonly ILogger<ActorClientService> _log;
         private readonly IConfiguration _config;
 
@@ -30,7 +35,14 @@ namespace Frontend
                         options.ServiceId = "serverlessorleans";
                     })
                     .ConfigureLogging(builder => builder.AddConsole())
-                    .ConfigureApplicationParts(parts => parts.AddFromApplicationBaseDirectory())
+                    .ConfigureApplicationParts(parts =>
+                    {
+                        foreach(var assembly in ExternalAssemblies)
+                        {
+                            System.Console.WriteLine("Loading orleans app parts: " + assembly.FullName);
+                            parts.AddApplicationPart(assembly);
+                        }
+                    })
                     .UseDashboard();
 
             var env = _config["ORLEANS_CONFIG"];
@@ -106,6 +118,27 @@ namespace Frontend
         {
             await Client.Close();
             Client.Dispose();
+        }
+
+        public static IEnumerable<Assembly> ExternalAssemblies
+        {
+            get
+            {
+                lock(_externalAssemblies)
+                {
+                    if (_externalAssemblies.Count == 0)
+                    {
+                        var appPath = AppDomain.CurrentDomain.BaseDirectory + "/app";
+
+                        foreach(var assemblyPath in Directory.GetFiles(appPath, "*.dll"))
+                        {
+                            _externalAssemblies.Add(Assembly.LoadFrom(assemblyPath));
+                        }
+                    }
+
+                    return _externalAssemblies;
+                }
+            }
         }
     }
 }
