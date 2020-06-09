@@ -7,14 +7,9 @@ locals {
   sp_json = jsondecode(file("${path.module}/azureauth.json"))
 }
 
-variable "location" {
-  type      = string
-  default   = "southcentralus"
-}
-
 variable "name" {
     type    = string
-    default = "joshorleans"
+    default = "serverlessorleans"
 }
 
 variable "orleans_container_cpu_cores" {
@@ -47,15 +42,14 @@ variable "scalein_memory_threshold" {
     default = 10
 }
 
-resource "azurerm_resource_group" "rg" {
+data "azurerm_resource_group" "rg" {
   name      = "${var.name}-rg"
-  location  = var.location
 }
 
 resource "azurerm_storage_account" "storage" {
   name                     = "${var.name}storage"
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
+  resource_group_name      = data.azurerm_resource_group.rg.name
+  location                 = data.azurerm_resource_group.rg.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
 }
@@ -67,8 +61,8 @@ resource "azurerm_storage_queue" "queue" {
 
 resource "azurerm_container_registry" "acr" {
   name                     = "${var.name}registry"
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
+  resource_group_name      = data.azurerm_resource_group.rg.name
+  location                 = data.azurerm_resource_group.rg.location
   sku                      = "Basic"
   admin_enabled            = true
 }
@@ -96,21 +90,21 @@ resource "null_resource" "acrimagebuildpush" {
 
 resource "azurerm_log_analytics_workspace" "la" {
   name                = "${var.name}loganalyticsworkspace"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   sku                 = "PerGB2018"
 }
 
 resource "azurerm_virtual_network" "vnet" {
   name                = "${var.name}vnet"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   address_space       = ["10.0.0.0/16"]
 }
 
 resource "azurerm_subnet" "frontendsubnet" {
   name                 = "${var.name}frontendsubnet"
-  resource_group_name  = azurerm_resource_group.rg.name
+  resource_group_name  = data.azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = [ "10.0.1.0/24" ]
 
@@ -128,7 +122,7 @@ resource "azurerm_subnet" "frontendsubnet" {
 
 resource "azurerm_subnet" "backendsubnet" {
   name                 = "${var.name}backendsubnet"
-  resource_group_name  = azurerm_resource_group.rg.name
+  resource_group_name  = data.azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = [ "10.0.2.0/24" ]
 
@@ -146,8 +140,8 @@ resource "azurerm_subnet" "backendsubnet" {
 
 resource "azurerm_network_profile" "backendnetworkprofile" {
   name                = "backendnetworkprofile"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
 
   container_network_interface {
     name = "containernic"
@@ -161,8 +155,8 @@ resource "azurerm_network_profile" "backendnetworkprofile" {
 
 resource "azurerm_container_group" "cg" {
   name                = "${var.name}cg1234"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   ip_address_type     = "private"
   network_profile_id  = azurerm_network_profile.backendnetworkprofile.id
   os_type             = "Linux"
@@ -227,8 +221,8 @@ resource "null_resource" "metricsoutput" {
 
 resource "azurerm_app_service_plan" "appserviceplan" {
   name                = "${var.name}appserviceplan"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   kind                = "Linux"
   reserved            = true
 
@@ -240,8 +234,8 @@ resource "azurerm_app_service_plan" "appserviceplan" {
 
 resource "azurerm_app_service" "appservice" {
   name                = "${var.name}appservice"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
   app_service_plan_id = azurerm_app_service_plan.appserviceplan.id
 
   site_config {
@@ -278,7 +272,7 @@ resource "azurerm_app_service_virtual_network_swift_connection" "appservicevnet"
 
 resource "azurerm_monitor_action_group" "scaleoutaction" {
   name                = "${var.name}scaleoutaction"
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = data.azurerm_resource_group.rg.name
   short_name          = "scaleout"
 
   webhook_receiver {
@@ -290,7 +284,7 @@ resource "azurerm_monitor_action_group" "scaleoutaction" {
 
 resource "azurerm_monitor_action_group" "scaleinaction" {
   name                = "${var.name}scaleinaction"
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = data.azurerm_resource_group.rg.name
   short_name          = "scalein"
 
   webhook_receiver {
@@ -302,8 +296,8 @@ resource "azurerm_monitor_action_group" "scaleinaction" {
 
 resource "azurerm_monitor_scheduled_query_rules_alert" "cpuscaleoutalert" {
   name                = "${var.name}cpuscaleoutalert"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
 
   action {
     action_group = [
@@ -342,8 +336,8 @@ resource "azurerm_monitor_scheduled_query_rules_alert" "cpuscaleoutalert" {
 
 resource "azurerm_monitor_scheduled_query_rules_alert" "cpuscaleinalert" {
   name                = "${var.name}cpuscaleinalert"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
 
   action {
     action_group = [
@@ -382,8 +376,8 @@ resource "azurerm_monitor_scheduled_query_rules_alert" "cpuscaleinalert" {
 
 resource "azurerm_monitor_scheduled_query_rules_alert" "memscaleoutalert" {
   name                = "${var.name}memscaleoutalert"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
 
   action {
     action_group = [
@@ -420,8 +414,8 @@ resource "azurerm_monitor_scheduled_query_rules_alert" "memscaleoutalert" {
 
 resource "azurerm_monitor_scheduled_query_rules_alert" "memscaleinalert" {
   name                = "${var.name}memscaleinalert"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
 
   action {
     action_group = [
