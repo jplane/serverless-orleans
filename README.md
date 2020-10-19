@@ -74,7 +74,7 @@ More info on Orleans [here](https://dotnet.github.io/orleans/Documentation/resou
 
 ## Local dev and debugging
 
-- Run [create-service-principal.sh](./create-service-principal.sh) to generate an [Azure SP](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals) used to add/remove ACI instances during autoscale events
+- Run [create-service-principal.sh](./create-service-principal.sh) to generate an [Azure service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals) used to add/remove ACI instances during autoscale events
 - Run [build-base-images.sh](./build-base-images.sh) to create the base Docker images for solution frontend (API, event listeners, and dashboards) and backend (actor host)
 - Right-click [docker-compose.yml](./docker-compose.yml) and select 'Compose Up'. This will build and launch the containers defined in the YAML file
 - Set breakpoints as desired

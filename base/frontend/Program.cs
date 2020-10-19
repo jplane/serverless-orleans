@@ -10,6 +10,7 @@ using Microsoft.Azure.WebJobs;
 using System.Collections.Generic;
 using System.Reflection;
 using System;
+using System.Diagnostics;
 
 namespace Frontend
 {
@@ -21,6 +22,36 @@ namespace Frontend
 
             var builder = Host.CreateDefaultBuilder(args);
 
+            ConfigureOrleansWeb(builder);
+
+            builder.ConfigureWebJobs(webJobsBuilder =>
+            {
+                webJobsBuilder.AddAzureStorageCoreServices();
+                webJobsBuilder.AddAzureStorage();
+
+                InjectWebJobTypeLocator(webJobsBuilder, externalAssemblies);
+            });
+
+            builder.ConfigureLogging((context, loggingBuilder) =>
+            {
+                loggingBuilder.AddConsole();
+            });
+
+            builder.ConfigureServices(services =>
+            {
+                var mvcBuilder = services.AddControllers();
+
+                foreach(var assembly in externalAssemblies)
+                {
+                    mvcBuilder.AddApplicationPart(assembly);
+                }
+            });
+
+            return builder.RunConsoleAsync();
+        }
+
+        private static void ConfigureOrleansWeb(IHostBuilder builder)
+        {
             builder.ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder
@@ -50,47 +81,34 @@ namespace Frontend
                         });
                     });
             });
-
-            builder.ConfigureWebJobs(webJobsBuilder =>
-            {
-                webJobsBuilder.AddAzureStorageCoreServices();
-                webJobsBuilder.AddAzureStorage();
-
-                InjectWebJobTypeLocator(webJobsBuilder, externalAssemblies);
-            });
-
-            builder.ConfigureLogging((context, loggingBuilder) =>
-            {
-                loggingBuilder.AddConsole();
-            });
-
-            builder.ConfigureServices(services =>
-            {
-                var mvcBuilder = services.AddControllers();
-
-                foreach(var assembly in externalAssemblies)
-                {
-                    mvcBuilder.AddApplicationPart(assembly);
-                }
-            });
-
-            return builder.RunConsoleAsync();
         }
 
         private static void InjectWebJobTypeLocator(IWebJobsBuilder webJobsBuilder,
                                                     IEnumerable<Assembly> externalAssemblies)
         {
+            Debug.Assert(webJobsBuilder != null);
+            Debug.Assert(externalAssemblies != null);
+            
             var locatorType = typeof(ITypeLocator).FullName;
+
+            Debug.Assert(!string.IsNullOrWhiteSpace(locatorType));
             
             var type = externalAssemblies.SelectMany(a => a.GetTypes())
                                          .SingleOrDefault(t => t.IsPublic && t.GetInterface(locatorType) != null);
 
             if (type == null)
             {
-                throw new Exception("Unable to resolve single public implementation of type: " + locatorType);
+                throw new InvalidOperationException("Unable to resolve single public implementation of type: " + locatorType);
             }
 
             var locator = (ITypeLocator) Activator.CreateInstance(type);
+
+            if (locator == null)
+            {
+                throw new InvalidOperationException("Unable to create instance of locator type: " + locatorType);
+            }
+
+            Debug.Assert(webJobsBuilder.Services != null);
 
             var existingTypeResolverDescriptor = webJobsBuilder
                                                     .Services

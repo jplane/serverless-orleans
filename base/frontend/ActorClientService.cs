@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 using System.Reflection;
 using System.IO;
+using System.Diagnostics;
 
 namespace Frontend
 {
@@ -24,46 +25,32 @@ namespace Frontend
 
         public ActorClientService(IConfiguration config, ILogger<ActorClientService> log)
         {
+            if (config == null)
+            {
+                throw new ArgumentNullException(nameof(config));
+            }
+
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+
             _config = config;
             _log = log;
 
-            var builder =
-                new ClientBuilder()
-                    .Configure<ClusterOptions>(options =>
-                    {
-                        options.ClusterId = "serverlessorleans";
-                        options.ServiceId = "serverlessorleans";
-                    })
-                    .ConfigureLogging(builder => builder.AddConsole())
-                    .ConfigureApplicationParts(parts =>
-                    {
-                        foreach(var assembly in ExternalAssemblies)
-                        {
-                            System.Console.WriteLine("Loading orleans app parts: " + assembly.FullName);
-                            parts.AddApplicationPart(assembly);
-                        }
-                    })
-                    .UseDashboard();
+            IClientBuilder builder = new ClientBuilder();
+
+            ConfigureOrleansBase(builder);
 
             var env = _config["ORLEANS_CONFIG"];
 
             if (env == "SQL")
             {
-                builder =
-                    builder.UseAdoNetClustering(options =>
-                    {
-                        options.Invariant = "System.Data.SqlClient";
-                        options.ConnectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
-                    });
+                ConfigureOrleansSQL(builder);
             }
             else if (env == "STORAGE")
             {
-                builder =
-                    builder.UseAzureStorageClustering(options =>
-                    {
-                        options.TableName = "clusterstate";
-                        options.ConnectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
-                    });
+                ConfigureOrleansStorage(builder);
             }
             else
             {
@@ -71,6 +58,46 @@ namespace Frontend
             }
 
             Client = builder.Build();
+        }
+
+        private void ConfigureOrleansStorage(IClientBuilder builder)
+        {
+            builder
+                .UseAzureStorageClustering(options =>
+                {
+                    options.TableName = "clusterstate";
+                    options.ConnectionString = Environment.GetEnvironmentVariable("AzureWebJobsStorage");
+                });
+        }
+
+        private void ConfigureOrleansSQL(IClientBuilder builder)
+        {
+            builder
+                .UseAdoNetClustering(options =>
+                {
+                    options.Invariant = "System.Data.SqlClient";
+                    options.ConnectionString = Environment.GetEnvironmentVariable("SqlConnectionString");
+                });
+        }
+
+        private void ConfigureOrleansBase(IClientBuilder builder)
+        {
+            builder
+                .Configure<ClusterOptions>(options =>
+                {
+                    options.ClusterId = "serverlessorleans";
+                    options.ServiceId = "serverlessorleans";
+                })
+                .ConfigureLogging(builder => builder.AddConsole())
+                .ConfigureApplicationParts(parts =>
+                {
+                    foreach(var assembly in ExternalAssemblies)
+                    {
+                        System.Console.WriteLine("Loading orleans app parts: " + assembly.FullName);
+                        parts.AddApplicationPart(assembly);
+                    }
+                })
+                .UseDashboard();
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -88,9 +115,9 @@ namespace Frontend
 
                 if (++attempt < maxAttempts)
                 {
-                    _log.LogWarning(error,
-                        "Failed to connect to Orleans cluster on attempt {@Attempt} of {@MaxAttempts}.",
-                        attempt, maxAttempts);
+                    _log.LogWarning(
+                        error,
+                        $"Failed to connect to Orleans cluster on attempt {attempt} of {maxAttempts}.");
 
                     try
                     {
@@ -106,8 +133,7 @@ namespace Frontend
                 else
                 {
                     _log.LogError(error,
-                        "Failed to connect to Orleans cluster on attempt {@Attempt} of {@MaxAttempts}.",
-                        attempt, maxAttempts);
+                        $"Failed to connect to Orleans cluster on attempt {attempt} of {maxAttempts}.");
 
                     return false;
                 }
@@ -129,6 +155,8 @@ namespace Frontend
                     if (_externalAssemblies.Count == 0)
                     {
                         var appPath = AppDomain.CurrentDomain.BaseDirectory + "/app";
+
+                        Debug.Assert(!string.IsNullOrWhiteSpace(appPath));
 
                         foreach(var assemblyPath in Directory.GetFiles(appPath, "*.dll"))
                         {

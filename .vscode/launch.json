@@ -10,6 +10,9 @@
             "request": "attach",
             "platform": "netCore",
             "sourceFileMap": {
+                "/src/message_actor_interfaces": "${workspaceFolder}/app/message_actor_interfaces",
+                "/src/message_actors": "${workspaceFolder}/app/message_actors",
+                "/src/message_app": "${workspaceFolder}/app/message_app",
                 "/src": "${workspaceFolder}"
             },
             "containerName": "frontend"

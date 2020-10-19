@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,16 @@ namespace MessageApp
 
         public MessagesController(IClusterClient client, ILogger<MessagesController> log)
         {
+            if (client == null)
+            {
+                throw new ArgumentNullException(nameof(client));
+            }
+
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+
             _client = client;
             _log = log;
         }
@@ -24,11 +35,22 @@ namespace MessageApp
         [Route("{actorId}")]
         public async Task<string[]> GetMessages(long actorId)
         {
+            Debug.Assert(_log != null);
+            
             _log.LogInformation("Getting messages");
 
-            var actor = _client.GetGrain<IMessageActor>(actorId);
+            Debug.Assert(_client != null);
+
+            var actor = GetActor(actorId);
+
+            Debug.Assert(actor != null);
 
             var messages = await actor.GetMessages().ConfigureAwait(false);
+
+            if (messages == null)
+            {
+                throw new InvalidOperationException("Actor failed to return valid list of messages.");
+            }
 
             return messages.ToArray();
         }
@@ -37,11 +59,34 @@ namespace MessageApp
         [Route("{actorId}")]
         public async Task AddMessage(long actorId, [FromBody] string message)
         {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                throw new ArgumentException("'Message' argument is not valid.");
+            }
+
+            Debug.Assert(_log != null);
+
             _log.LogInformation("Adding a message");
+
+            var actor = GetActor(actorId);
+
+            Debug.Assert(actor != null);
+
+            await actor.AddMessage(message).ConfigureAwait(false);
+        }
+
+        private IMessageActor GetActor(long actorId)
+        {
+            Debug.Assert(_client != null);
 
             var actor = _client.GetGrain<IMessageActor>(actorId);
 
-            await actor.AddMessage(message).ConfigureAwait(false);
+            if (actor == null)
+            {
+                throw new InvalidOperationException("Orleans runtime failed to return valid actor instance.");
+            }
+
+            return actor;
         }
     }
 }
